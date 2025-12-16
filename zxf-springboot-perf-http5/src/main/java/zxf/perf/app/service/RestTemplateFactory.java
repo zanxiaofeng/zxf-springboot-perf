@@ -15,7 +15,7 @@ public class RestTemplateFactory {
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
         RestTemplate restTemplate = new RestTemplate(requestFactory);
 
-        monitor.monitor(requestFactory);
+        monitor.monitor(requestFactory.getHttpClient());
         return restTemplate;
     }
 }

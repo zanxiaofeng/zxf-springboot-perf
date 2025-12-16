@@ -14,7 +14,7 @@ import java.util.*;
  *
  * @author davis
  */
-public class TrackedReference<T> extends WeakReference<T> {
+public class TReference<T> extends WeakReference<T> {
     @Getter
     private final String id;
     @Getter
@@ -30,7 +30,7 @@ public class TrackedReference<T> extends WeakReference<T> {
     @Getter
     private volatile String lifecyclePhase;
 
-    public TrackedReference(T referent, ReferenceQueue<? super T> queue, Map<String, Object> additionalMetadata) {
+    public TReference(T referent, ReferenceQueue<? super T> queue, Map<String, Object> additionalMetadata) {
         super(referent, queue);
         this.id = UUID.randomUUID().toString();
         this.className = referent.getClass().getName();

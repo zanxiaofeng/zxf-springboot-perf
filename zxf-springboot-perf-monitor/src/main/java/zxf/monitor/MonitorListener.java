@@ -12,14 +12,14 @@ public interface MonitorListener<T> {
      *
      * @param ref 跟踪引用
      */
-    void onObjectRegistered(TrackedReference<T> ref);
+    void onObjectRegistered(TReference<T> ref);
 
     /**
      * 对象回收
      *
      * @param ref 跟踪引用
      */
-    void onObjectCollected(TrackedReference<T> ref);
+    void onObjectCollected(TReference<T> ref);
 
     /**
      * 对象泄漏
@@ -27,7 +27,7 @@ public interface MonitorListener<T> {
      * @param ref    跟踪引用
      * @param reason 原因
      */
-    void onLeakSuspected(TrackedReference<T> ref, String reason);
+    void onLeakSuspected(TReference<T> ref, String reason);
 
     /**
      * 确认泄漏
@@ -35,14 +35,7 @@ public interface MonitorListener<T> {
      * @param ref    跟踪引用
      * @param reason 原因
      */
-    void onLeakConfirmed(TrackedReference<T> ref, String reason);
-
-    /**
-     * 对象过期
-     *
-     * @param ref 跟踪引用
-     */
-    void onObjectExpired(TrackedReference<T> ref);
+    void onLeakConfirmed(TReference<T> ref, String reason);
 
     /**
      * 统计数据更新

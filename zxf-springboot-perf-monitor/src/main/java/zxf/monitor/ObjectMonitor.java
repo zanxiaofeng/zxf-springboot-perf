@@ -19,13 +19,14 @@ public class ObjectMonitor<T> {
     private final Class<T> targetClass;
     private final List<MonitorListener<T>> listeners = new CopyOnWriteArrayList<>();
     private final MonitorConfig monitorConfig = new MonitorConfig();
-    private final ScheduledExecutorService monitorExecutor;
     private final ScheduledExecutorService cleanupExecutor;
+    private final ScheduledExecutorService leakDetectionExecutor;
+    private final ScheduledExecutorService statsExecutor;
 
     /**
      * 监控数据存储
      */
-    private final Map<String, TrackedReference<T>> activeReferences = new ConcurrentHashMap<>();
+    private final Map<String, TReference<T>> activeReferences = new ConcurrentHashMap<>();
     private final ReferenceQueue<T> referenceQueue = new ReferenceQueue<>();
 
     /**
@@ -41,15 +42,19 @@ public class ObjectMonitor<T> {
      */
     public ObjectMonitor(Class<T> targetClass) {
         this.targetClass = targetClass;
-        cleanupExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        this.cleanupExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread thread = new Thread(r, "ObjectMonitor-Cleanup-" + targetClass.getName());
             thread.setDaemon(true);
             return thread;
         });
-        monitorExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread thread = new Thread(r, "ObjectMonitor-Monitor-" + targetClass.getName());
+        this.leakDetectionExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "ObjectMonitor-LeadDetect-" + targetClass.getName());
             thread.setDaemon(true);
-            thread.setPriority(Thread.MIN_PRIORITY);
+            return thread;
+        });
+        this.statsExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread thread = new Thread(r, "ObjectMonitor-Stats-" + targetClass.getName());
+            thread.setDaemon(true);
             return thread;
         });
     }
@@ -69,46 +74,46 @@ public class ObjectMonitor<T> {
     }
 
     /**
-     * 设置配置
+     * 启动监控
      */
-    public void configure(Consumer<MonitorConfig> configurator) {
+    public void startup(Consumer<MonitorConfig> configurator) {
         synchronized (this) {
             configurator.accept(monitorConfig);
         }
-    }
 
-    /**
-     * 启动监控
-     */
-    public void startup() {
         // 定期清理已回收的引用（快速清理，每100毫秒）
         cleanupExecutor.scheduleAtFixedRate(this::cleanupCollectedReferences, 100, 100, TimeUnit.MILLISECONDS);
 
         // 定期检查泄漏（较慢，每30秒）
-        monitorExecutor.scheduleAtFixedRate(this::performLeakDetection, monitorConfig.checkInterval.getSeconds(),
+        leakDetectionExecutor.scheduleAtFixedRate(this::performLeakDetection, monitorConfig.checkInterval.getSeconds(),
                 monitorConfig.checkInterval.getSeconds(), TimeUnit.SECONDS);
 
         // 定期更新统计数据（每5秒）
-        monitorExecutor.scheduleAtFixedRate(this::updateStats, 5, 5, TimeUnit.SECONDS);
-
-        // 定期输出统计信息（每分钟）
-        monitorExecutor.scheduleAtFixedRate(this::printStatistics, 60, 60, TimeUnit.SECONDS);
+        statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getStatsInterval().getSeconds(),
+                monitorConfig.getStatsInterval().getSeconds(), TimeUnit.SECONDS);
     }
 
     /**
      * 停止监控
      */
     public void shutdown() {
-        monitorExecutor.shutdown();
+        cleanupExecutor.shutdown();
         try {
-            monitorExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            cleanupExecutor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        cleanupExecutor.shutdown();
+        leakDetectionExecutor.shutdown();
         try {
-            cleanupExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            leakDetectionExecutor.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        statsExecutor.shutdown();
+        try {
+            statsExecutor.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -119,13 +124,13 @@ public class ObjectMonitor<T> {
     /**
      * 注册对象并附加元数据
      */
-    public TrackedReference<T> register(T object, Map<String, Object> metadata) {
+    public TReference<T> register(T object, Map<String, Object> metadata) {
         if (!targetClass.isInstance(object)) {
             return null;
         }
 
         synchronized (this) {
-            TrackedReference<T> ref = new TrackedReference<>(object, referenceQueue, metadata);
+            TReference<T> ref = new TReference<>(object, referenceQueue, metadata);
             activeReferences.put(ref.getId(), ref);
             totalCreated.incrementAndGet();
             for (MonitorListener<T> listener : listeners) {
@@ -143,7 +148,7 @@ public class ObjectMonitor<T> {
      * 记录对象访问
      */
     public void recordAccess(String refId) {
-        TrackedReference<T> ref = activeReferences.get(refId);
+        TReference<T> ref = activeReferences.get(refId);
         if (ref != null) {
             ref.recordAccess();
         }
@@ -153,7 +158,7 @@ public class ObjectMonitor<T> {
      * 更新对象生命周期阶段
      */
     public void updateLifecyclePhase(String refId, String phase) {
-        TrackedReference<T> ref = activeReferences.get(refId);
+        TReference<T> ref = activeReferences.get(refId);
         if (ref != null) {
             ref.updateLifecyclePhase(phase);
         }
@@ -163,7 +168,7 @@ public class ObjectMonitor<T> {
      * 添加元数据
      */
     public void addMetadata(String refId, String key, Object value) {
-        TrackedReference<T> ref = activeReferences.get(refId);
+        TReference<T> ref = activeReferences.get(refId);
         if (ref != null) {
             ref.addMetadata(key, value);
         }
@@ -174,7 +179,7 @@ public class ObjectMonitor<T> {
      */
     public MonitorStats getStats() {
         synchronized (this) {
-            long totalAge = activeReferences.values().stream().map(TrackedReference::getAge)
+            long totalAge = activeReferences.values().stream().map(TReference::getAge)
                     .map(Duration::getSeconds).reduce(0L, Long::sum);
             double avgAge = activeReferences.size() > 0 ? (double) totalAge / activeReferences.size() : 0.0;
 
@@ -186,7 +191,7 @@ public class ObjectMonitor<T> {
     /**
      * 获取疑似泄漏的引用
      */
-    public List<TrackedReference<T>> getLeakSuspectedReferences() {
+    public List<TReference<T>> getLeakSuspectedReferences() {
         return activeReferences.values().stream()
                 .filter(ref -> ref.isLeakSuspected() || ref.isLeakConfirmed())
                 .collect(Collectors.toList());
@@ -196,18 +201,15 @@ public class ObjectMonitor<T> {
      * 清理已回收的引用
      */
     private void cleanupCollectedReferences() {
-        int cleanedCount = 0;
-
         Reference<? extends T> ref;
         while ((ref = referenceQueue.poll()) != null) {
             @SuppressWarnings("unchecked")
-            TrackedReference<T> trackedRef = (TrackedReference<T>) ref;
+            TReference<T> trackedRef = (TReference<T>) ref;
             trackedRef.markAsCollected();
 
             String refId = trackedRef.getId();
             if (activeReferences.remove(refId) != null) {
                 totalCollected.incrementAndGet();
-                cleanedCount++;
                 for (MonitorListener<T> listener : listeners) {
                     try {
                         listener.onObjectCollected(trackedRef);
@@ -223,6 +225,7 @@ public class ObjectMonitor<T> {
      * 执行泄漏检测
      */
     private void performLeakDetection() {
+        System.out.println("performLeakDetection");
         if (monitorConfig.autoGcBeforeCheck) {
             System.gc();
             try {
@@ -233,7 +236,7 @@ public class ObjectMonitor<T> {
         }
 
         synchronized (this) {
-            for (TrackedReference<T> ref : activeReferences.values()) {
+            for (TReference<T> ref : activeReferences.values()) {
                 if (ref.isActive()) {
                     if (ref.getAge().compareTo(monitorConfig.maxObjectAge) > 0) {
                         ref.markAsLeakSuspected("对象存活时间超过 " + monitorConfig.maxObjectAge);
@@ -252,7 +255,7 @@ public class ObjectMonitor<T> {
 
             MonitorStats currentStats = getStats();
             if (currentStats.totalLeakSuspected() > monitorConfig.leakSuspectThreshold) {
-                for (TrackedReference<T> ref : activeReferences.values()) {
+                for (TReference<T> ref : activeReferences.values()) {
                     if (!ref.isActive()) {
                         continue;
                     }
@@ -275,20 +278,7 @@ public class ObjectMonitor<T> {
      * 更新统计
      */
     private void updateStats() {
-        MonitorStats stats = getStats();
-        for (MonitorListener<T> listener : listeners) {
-            try {
-                listener.onStatsUpdated(stats);
-            } catch (Exception e) {
-                // 忽略监听器异常
-            }
-        }
-    }
-
-    /**
-     * 打印统计信息
-     */
-    private void printStatistics() {
+        System.out.println("updateStats");
         MonitorStats stats = getStats();
         System.out.printf(" === [%s] 对象监控统计 ===%n", targetClass.getName());
         System.out.printf("活跃实例: %d%n", stats.activeCount());
@@ -304,6 +294,13 @@ public class ObjectMonitor<T> {
 
         if (stats.activeCount() > monitorConfig.leakSuspectThreshold) {
             System.err.printf("⚠️ 警告: 活跃对象数量超过阈值 (%d > %d)%n", stats.activeCount(), monitorConfig.leakSuspectThreshold);
+        }
+        for (MonitorListener<T> listener : listeners) {
+            try {
+                listener.onStatsUpdated(stats);
+            } catch (Exception e) {
+                // 忽略监听器异常
+            }
         }
     }
 }

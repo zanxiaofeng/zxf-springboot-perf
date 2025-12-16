@@ -1,41 +1,41 @@
 package zxf.perf.app.http5;
 
+import org.apache.hc.client5.http.classic.HttpClient;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import zxf.monitor.MemoryMonitorManager;
 import zxf.monitor.MonitorListener;
 import zxf.monitor.MonitorStats;
-import zxf.monitor.TrackedReference;
+import zxf.monitor.ObjectMonitor;
+import zxf.monitor.TReference;
 
 import java.time.Duration;
 
 @Component
 public class HttpClientMonitor {
+    private final ObjectMonitor<HttpClient> monitorManager;
 
     public HttpClientMonitor() {
-        MemoryMonitorManager.getInstance().getMonitor(HttpComponentsClientHttpRequestFactory.class).addListener(
+        monitorManager = new ObjectMonitor<>(HttpClient.class);
+        monitorManager.addListener(
                 new MonitorListener<>() {
                     @Override
-                    public void onObjectRegistered(TrackedReference<HttpComponentsClientHttpRequestFactory> ref) {
+                    public void onObjectRegistered(TReference<HttpClient> ref) {
+                        //System.out.println("注册连接: " + ref.getSummary());
                     }
 
                     @Override
-                    public void onObjectCollected(TrackedReference<HttpComponentsClientHttpRequestFactory> ref) {
+                    public void onObjectCollected(TReference<HttpClient> ref) {
+                        //System.out.println("收集连接: " + ref.getSummary());
                     }
 
                     @Override
-                    public void onLeakSuspected(TrackedReference<HttpComponentsClientHttpRequestFactory> ref, String reason) {
+                    public void onLeakSuspected(TReference<HttpClient> ref, String reason) {
                         System.err.println("⚠️ 连接泄漏嫌疑: " + ref.getSummary() + ", 原因: " + reason);
                     }
 
                     @Override
-                    public void onLeakConfirmed(TrackedReference<HttpComponentsClientHttpRequestFactory> ref, String reason) {
+                    public void onLeakConfirmed(TReference<HttpClient> ref, String reason) {
                         System.err.println("❌ 确认连接泄漏: " + ref.getSummary() + ", 原因: " + reason);
-                    }
-
-                    @Override
-                    public void onObjectExpired(TrackedReference<HttpComponentsClientHttpRequestFactory> ref) {
-                        System.out.println("连接过期: " + ref.getSummary());
                     }
 
                     @Override
@@ -45,15 +45,16 @@ public class HttpClientMonitor {
                 });
 
         // 配置监控器
-        MemoryMonitorManager.getInstance().getMonitor(HttpComponentsClientHttpRequestFactory.class).configure(config -> {
-            config.setLeakSuspectThreshold(500);
-            config.setMaxObjectAge(Duration.ofMinutes(30));
-            config.setCheckInterval(Duration.ofSeconds(180));
+        monitorManager.startup(config -> {
+            config.setCheckInterval(Duration.ofSeconds(30));
+            config.setStatsInterval(Duration.ofSeconds(60));
             config.setAutoGcBeforeCheck(true);
+            config.setLeakSuspectThreshold(5000);
+            config.setMaxObjectAge(Duration.ofMinutes(10));
         });
     }
 
-    public void monitor(HttpComponentsClientHttpRequestFactory factory) {
-        MemoryMonitorManager.getInstance().monitorObject(factory, null);
+    public void monitor(HttpClient factory) {
+        monitorManager.register(factory, null);
     }
 }
