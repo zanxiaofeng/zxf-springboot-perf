@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import zxf.perf.app.service.RestTemplateFactory;
+import zxf.perf.app.service.RestTemplateTestService;
 
 @Slf4j
 @RestController

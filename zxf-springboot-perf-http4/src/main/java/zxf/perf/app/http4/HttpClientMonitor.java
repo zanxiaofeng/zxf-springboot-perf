@@ -1,6 +1,6 @@
-package zxf.perf.app.http5;
+package zxf.perf.app.http4;
 
-import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.http.client.HttpClient;
 import org.springframework.stereotype.Component;
 import zxf.monitor.MonitorListener;
 import zxf.monitor.MonitorStats;

@@ -6,12 +6,14 @@ import java.time.Duration;
 
 /**
  * 配置参数
+ *
+ * @author davis
  */
 @Data
 public class MonitorConfig {
-    Duration checkInterval = Duration.ofSeconds(30); // 检查间隔
-    Duration StatsInterval = Duration.ofSeconds(120); // 统计间隔
-    boolean autoGcBeforeCheck = false; // 检查前自动GC
-    int leakSuspectThreshold = 1000; // 泄漏嫌疑阈值
-    Duration maxObjectAge = Duration.ofHours(1); // 最大对象年龄
+    Duration checkInterval = Duration.ofSeconds(30);
+    Duration tatsInterval = Duration.ofSeconds(120);
+    boolean autoGcBeforeCheck = false;
+    Duration maxObjectAge = Duration.ofHours(1);
+    int leakSuspectThreshold = 1000;
 }

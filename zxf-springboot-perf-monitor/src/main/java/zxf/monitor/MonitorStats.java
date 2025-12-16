@@ -8,8 +8,8 @@ import java.time.Instant;
  * @author davis
  */
 public record MonitorStats(String className, long activeCount, long totalCreated, long totalCollected,
-                           long totalLeakSuspected, long totalLeakConfirmed,
-                           double avgObjectAgeSeconds, Instant timestamp) {
+                           long totalLeakSuspected, long totalLeakConfirmed, double avgObjectAgeSeconds,
+                           Instant timestamp) {
     public double getLeakRate() {
         return totalCreated > 0 ? (double) activeCount / totalCreated : 0.0;
     }

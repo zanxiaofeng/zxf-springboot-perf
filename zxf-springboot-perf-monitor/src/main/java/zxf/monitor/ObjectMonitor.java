@@ -17,11 +17,11 @@ import java.util.stream.Collectors;
  */
 public class ObjectMonitor<T> {
     private final Class<T> targetClass;
-    private final List<MonitorListener<T>> listeners = new CopyOnWriteArrayList<>();
     private final MonitorConfig monitorConfig = new MonitorConfig();
     private final ScheduledExecutorService cleanupExecutor;
     private final ScheduledExecutorService leakDetectionExecutor;
     private final ScheduledExecutorService statsExecutor;
+    private MonitorListener<T> listener;
 
     /**
      * 监控数据存储
@@ -60,25 +60,12 @@ public class ObjectMonitor<T> {
     }
 
     /**
-     * 添加监听器
-     */
-    public void addListener(MonitorListener<T> listener) {
-        listeners.add(listener);
-    }
-
-    /**
-     * 移除监听器
-     */
-    public void removeListener(MonitorListener<T> listener) {
-        listeners.remove(listener);
-    }
-
-    /**
      * 启动监控
      */
-    public void startup(Consumer<MonitorConfig> configurator) {
+    public void startup(Consumer<MonitorConfig> configurator, MonitorListener<T> listener) {
         synchronized (this) {
             configurator.accept(monitorConfig);
+            this.listener = listener;
         }
 
         // 定期清理已回收的引用（快速清理，每100毫秒）
@@ -89,8 +76,8 @@ public class ObjectMonitor<T> {
                 monitorConfig.checkInterval.getSeconds(), TimeUnit.SECONDS);
 
         // 定期更新统计数据（每5秒）
-        statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getStatsInterval().getSeconds(),
-                monitorConfig.getStatsInterval().getSeconds(), TimeUnit.SECONDS);
+        statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getTatsInterval().getSeconds(),
+                monitorConfig.getTatsInterval().getSeconds(), TimeUnit.SECONDS);
     }
 
     /**
@@ -133,7 +120,7 @@ public class ObjectMonitor<T> {
             TReference<T> ref = new TReference<>(object, referenceQueue, metadata);
             activeReferences.put(ref.getId(), ref);
             totalCreated.incrementAndGet();
-            for (MonitorListener<T> listener : listeners) {
+            if (listener != null) {
                 try {
                     listener.onObjectRegistered(ref);
                 } catch (Exception e) {
@@ -210,7 +197,7 @@ public class ObjectMonitor<T> {
             String refId = trackedRef.getId();
             if (activeReferences.remove(refId) != null) {
                 totalCollected.incrementAndGet();
-                for (MonitorListener<T> listener : listeners) {
+                if (listener != null) {
                     try {
                         listener.onObjectCollected(trackedRef);
                     } catch (Exception e) {
@@ -241,7 +228,7 @@ public class ObjectMonitor<T> {
                     if (ref.getAge().compareTo(monitorConfig.maxObjectAge) > 0) {
                         ref.markAsLeakSuspected("对象存活时间超过 " + monitorConfig.maxObjectAge);
                         totalLeakSuspected.incrementAndGet();
-                        for (MonitorListener<T> listener : listeners) {
+                        if (listener != null) {
                             try {
                                 listener.onLeakSuspected(ref, "对象存活时间超过 " + monitorConfig.maxObjectAge);
                             } catch (Exception e) {
@@ -262,7 +249,7 @@ public class ObjectMonitor<T> {
 
                     ref.markAsLeakConfirmed("Active count exceeds confirmation threshold");
                     totalLeakConfirmed.incrementAndGet();
-                    for (MonitorListener<T> listener : listeners) {
+                    if (listener != null) {
                         try {
                             listener.onLeakConfirmed(ref, "Active count exceeds confirmation threshold");
                         } catch (Exception e) {
@@ -295,7 +282,7 @@ public class ObjectMonitor<T> {
         if (stats.activeCount() > monitorConfig.leakSuspectThreshold) {
             System.err.printf("⚠️ 警告: 活跃对象数量超过阈值 (%d > %d)%n", stats.activeCount(), monitorConfig.leakSuspectThreshold);
         }
-        for (MonitorListener<T> listener : listeners) {
+        if (listener != null) {
             try {
                 listener.onStatsUpdated(stats);
             } catch (Exception e) {
