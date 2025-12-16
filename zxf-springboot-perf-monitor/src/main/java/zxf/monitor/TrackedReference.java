@@ -22,14 +22,7 @@ public class TrackedReference<T> extends WeakReference<T> {
     @Getter
     private final Instant creationTime;
     @Getter
-    private final Instant registrationTime;
-    @Getter
-    private final String threadName;
-    @Getter
-    private final List<StackTraceElement> creationStackTrace;
-    @Getter
     private final Map<String, Object> metadata;
-
     @Getter
     private volatile State state;
     @Getter
@@ -42,19 +35,15 @@ public class TrackedReference<T> extends WeakReference<T> {
         this.id = UUID.randomUUID().toString();
         this.className = referent.getClass().getName();
         this.creationTime = Instant.now();
-        this.registrationTime = Instant.now();
-        this.threadName = Thread.currentThread().getName();
-        this.creationStackTrace = List.of(Thread.currentThread().getStackTrace());
-        this.metadata = new HashMap<>();
-
         this.state = State.ACTIVE;
         this.lastAccessTime = Instant.now();
         this.lifecyclePhase = "created";
-
-        metadata.put("className", referent.getClass().getName());
-        metadata.put("hashCode", System.identityHashCode(referent));
+        this.metadata = new HashMap<>();
+        this.metadata.put("hashCode", System.identityHashCode(referent));
+        this.metadata.put("threadName", Thread.currentThread().getName());
+        this.metadata.put("stackTrace", List.of(Thread.currentThread().getStackTrace()));
         if (additionalMetadata != null) {
-            metadata.putAll(additionalMetadata);
+            this.metadata.putAll(additionalMetadata);
         }
     }
 
@@ -79,11 +68,7 @@ public class TrackedReference<T> extends WeakReference<T> {
         /**
          * 已回收
          */
-        GARBAGE_COLLECTED,
-        /**
-         * 已过期（超时）
-         */
-        EXPIRED
+        GARBAGE_COLLECTED
     }
 
     /**
@@ -129,12 +114,39 @@ public class TrackedReference<T> extends WeakReference<T> {
     }
 
     /**
+     * 是否是活跃
+     *
+     * @return true 是，false 否
+     */
+    public Boolean isActive() {
+        return this.state == State.ACTIVE;
+    }
+
+    /**
+     * 是否是疑似泄漏
+     *
+     * @return true 是，false 否
+     */
+    public Boolean isLeakSuspected() {
+        return this.state == State.LEAK_SUSPECTED;
+    }
+
+    /**
      * 标记为疑似泄漏
      */
     public void markAsLeakSuspected(String reason) {
         this.state = State.LEAK_SUSPECTED;
         metadata.put("leakSuspectedReason", reason);
         metadata.put("leakSuspectedTime", Instant.now().toString());
+    }
+
+    /**
+     * 是否是疑似泄漏
+     *
+     * @return true 是，false 否
+     */
+    public Boolean isLeakConfirmed() {
+        return this.state == State.LEAK_CONFIRMED;
     }
 
     /**
@@ -146,13 +158,16 @@ public class TrackedReference<T> extends WeakReference<T> {
         metadata.put("leakConfirmedTime", Instant.now().toString());
     }
 
+
     /**
-     * 标记为过期
+     * 是否是已回收
+     *
+     * @return true 是，false 否
      */
-    public void markAsExpired() {
-        this.state = State.EXPIRED;
-        metadata.put("expiredTime", Instant.now().toString());
+    public Boolean isCollected() {
+        return this.state == State.GARBAGE_COLLECTED;
     }
+
 
     /**
      * 标记为已回收
@@ -165,8 +180,8 @@ public class TrackedReference<T> extends WeakReference<T> {
      * 获取对象的摘要信息
      */
     public String getSummary() {
-        return String.format("TrackedReference[id=%s, class=%s, state=%s, age=%s, idle=%s]",
-                id, className, state, getAge(), getIdleTime());
+        return String.format("TrackedReference[id=%s, class=%s, state=%s, age=%s, idle=%s, metadata=%s]",
+                id, className, state, getAge(), getIdleTime(), getMetadata().toString());
     }
 
     @Override

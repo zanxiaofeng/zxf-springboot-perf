@@ -2,9 +2,10 @@ package zxf.perf.app.http5;
 
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import zxf.perf.monitor.MemoryMonitorManager;
-import zxf.perf.monitor.ObjectMonitor;
-import zxf.perf.monitor.TrackedReference;
+import zxf.monitor.MemoryMonitorManager;
+import zxf.monitor.MonitorListener;
+import zxf.monitor.MonitorStats;
+import zxf.monitor.TrackedReference;
 
 import java.time.Duration;
 
@@ -13,7 +14,7 @@ public class HttpClientMonitor {
 
     public HttpClientMonitor() {
         MemoryMonitorManager.getInstance().getMonitor(HttpComponentsClientHttpRequestFactory.class).addListener(
-                new ObjectMonitor.MonitorListener<>() {
+                new MonitorListener<>() {
                     @Override
                     public void onObjectRegistered(TrackedReference<HttpComponentsClientHttpRequestFactory> ref) {
                     }
@@ -38,7 +39,7 @@ public class HttpClientMonitor {
                     }
 
                     @Override
-                    public void onStatsUpdated(ObjectMonitor.Stats stats) {
+                    public void onStatsUpdated(MonitorStats stats) {
                         // 可以记录统计信息到日志
                     }
                 });
@@ -46,7 +47,6 @@ public class HttpClientMonitor {
         // 配置监控器
         MemoryMonitorManager.getInstance().getMonitor(HttpComponentsClientHttpRequestFactory.class).configure(config -> {
             config.setLeakSuspectThreshold(500);
-            config.setLeakConfirmThreshold(100);
             config.setMaxObjectAge(Duration.ofMinutes(30));
             config.setCheckInterval(Duration.ofSeconds(180));
             config.setAutoGcBeforeCheck(true);
