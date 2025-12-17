@@ -22,7 +22,7 @@ public class HttpClientMonitor {
             config.setAutoGcBeforeCheck(true);
             config.setLeakSuspectThreshold(5000);
             config.setMaxObjectAge(Duration.ofMinutes(10));
-        }, new MonitorListener<>() {
+        }, new MonitorListener<HttpClient>() {
             @Override
             public void onObjectRegistered(TReference<HttpClient> ref) {
                 //System.out.println("注册连接: " + ref.getSummary());
@@ -45,7 +45,7 @@ public class HttpClientMonitor {
 
             @Override
             public void onStatsUpdated(MonitorStats stats) {
-                // 可以记录统计信息到日志
+
             }
         });
     }

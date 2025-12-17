@@ -21,6 +21,6 @@ public class TestController {
     }
 
     private String testRestTemplate(RestTemplate restTemplate) {
-        return restTemplate.getForObject("http://localhost:8089/", String.class);
+        return restTemplate.getForObject("http://localhost:8089/binary", String.class);
     }
 }
