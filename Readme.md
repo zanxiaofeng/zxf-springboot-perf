@@ -3,7 +3,7 @@
 
 # 资源泄露的原因
 - 应用创建的应用层对象（内存new/free）在某个地方Hold住了，比如静态对象
-- 应用创建的系统层对象（线程start/interrupt，OS资源等）没有主动及时释放
+- 应用创建的系统层对象（线程start/interrupt，线程池，OS资源等）没有主动及时释放
 
 # 如何确定类是否有资源泄露
 - 实现： DisposableBean/Closeable

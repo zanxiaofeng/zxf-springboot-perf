@@ -2,16 +2,14 @@ package zxf.perf.app.http5;
 
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.springframework.stereotype.Component;
-import zxf.monitor.MonitorListener;
-import zxf.monitor.MonitorStats;
-import zxf.monitor.ObjectMonitor;
-import zxf.monitor.TReference;
+import zxf.monitor.*;
 
 import java.time.Duration;
 
 @Component
 public class HttpClientMonitor {
     private final ObjectMonitor<HttpClient> monitorManager;
+    private final ThreadMonitor threadMonitor;
 
     public HttpClientMonitor() {
         monitorManager = new ObjectMonitor<>(HttpClient.class);
@@ -48,6 +46,9 @@ public class HttpClientMonitor {
                 // 可以记录统计信息到日志
             }
         });
+
+        threadMonitor = new ThreadMonitor(new String[]{"org.apache.hc.client5", "idle-connection-evictor"}, true);
+        threadMonitor.start();
     }
 
     public void monitor(HttpClient factory) {

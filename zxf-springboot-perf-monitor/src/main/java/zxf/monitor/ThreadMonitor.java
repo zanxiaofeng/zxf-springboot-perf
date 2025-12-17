@@ -11,10 +11,12 @@ import static java.util.concurrent.Executors.*;
 
 public class ThreadMonitor {
     private final String[] searchKeys;
+    private final Boolean logFound;
     private final ScheduledExecutorService monitorExecutor;
 
-    public ThreadMonitor(String[] searchKeys) {
+    public ThreadMonitor(String[] searchKeys, Boolean logFound) {
         this.searchKeys = searchKeys;
+        this.logFound = logFound;
         this.monitorExecutor = newSingleThreadScheduledExecutor(r -> {
             Thread thread = new Thread(r, "ThreadMonitor-" + Arrays.asList(searchKeys));
             thread.setDaemon(true);
@@ -23,7 +25,7 @@ public class ThreadMonitor {
     }
 
     public void start() {
-        monitorExecutor.scheduleWithFixedDelay(this::checkHttpClientThreads, 10, 10, TimeUnit.SECONDS);
+        monitorExecutor.scheduleWithFixedDelay(this::checkHttpClientThreads, 30, 30, TimeUnit.SECONDS);
     }
 
     public void stop() {
@@ -34,12 +36,22 @@ public class ThreadMonitor {
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
         ThreadInfo[] threads = threadBean.dumpAllThreads(false, false);
 
+        int totalCount = threads.length;
+        int foundCount = 0;
         for (ThreadInfo thread : threads) {
+            String threadInfo = thread + " - " + Arrays.asList(thread.getStackTrace());
             for (String searchKey : searchKeys) {
-                if (thread.getThreadName().contains(searchKey)) {
-                    System.out.println("⚠️ 线程泄漏: " + thread + Arrays.asList(thread.getStackTrace()).toString());
+                if (threadInfo.contains(searchKey)) {
+                    foundCount++;
+                    if (logFound) {
+                        System.out.println("⚠️ 线程泄漏: " + thread + Arrays.asList(thread.getStackTrace()));
+                    }
+                    break;
                 }
             }
+        }
+        if (foundCount > 0) {
+            System.out.println("⚠️ 线程泄漏: " + foundCount + " / " + totalCount);
         }
     }
 }
