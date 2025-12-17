@@ -212,7 +212,6 @@ public class ObjectMonitor<T> {
      * 执行泄漏检测
      */
     private void performLeakDetection() {
-        System.out.println("performLeakDetection");
         if (monitorConfig.autoGcBeforeCheck) {
             System.gc();
             try {
@@ -265,7 +264,6 @@ public class ObjectMonitor<T> {
      * 更新统计
      */
     private void updateStats() {
-        System.out.println("updateStats");
         MonitorStats stats = getStats();
         System.out.printf(" === [%s] 对象监控统计 ===%n", targetClass.getName());
         System.out.printf("活跃实例: %d%n", stats.activeCount());

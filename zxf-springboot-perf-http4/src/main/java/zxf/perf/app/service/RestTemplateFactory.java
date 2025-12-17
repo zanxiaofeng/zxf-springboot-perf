@@ -24,8 +24,10 @@ public class RestTemplateFactory {
     }
 
     public RestTemplate newRestTemplateWithCustomHttpClientWithPool() throws Exception {
-        HttpClient httpClient = HttpClients.custom().setConnectionManager(new PoolingHttpClientConnectionManager())
-                .evictIdleConnections(30, TimeUnit.SECONDS).build();
+        HttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(new PoolingHttpClientConnectionManager())
+                .evictIdleConnections(30, TimeUnit.SECONDS)
+                .build();
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
         RestTemplate restTemplate = new RestTemplate(requestFactory);
         monitor.monitor(httpClient);
