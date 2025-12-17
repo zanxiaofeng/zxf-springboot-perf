@@ -1,6 +1,9 @@
 # Apache HTTP server benchmarking tool
-
 - ab -c 10 -n 1000000 http://localhost:8080/test/new
+
+# 内存泄露的原因
+- 应用创建的应用层对象（内存new/free）在某个地方Hold住了，比如静态对象
+- 应用创建的系统层对象（线程start/interrupt，OS资源等）没有主动及时释放
 
 # Apache Httpclient5 相关的内存泄漏风险点
 ## org.springframework.http.client.HttpComponentsClientHttpRequestFactory

@@ -2,16 +2,14 @@ package zxf.perf.app.http4;
 
 import org.apache.http.client.HttpClient;
 import org.springframework.stereotype.Component;
-import zxf.monitor.MonitorListener;
-import zxf.monitor.MonitorStats;
-import zxf.monitor.ObjectMonitor;
-import zxf.monitor.TReference;
+import zxf.monitor.*;
 
 import java.time.Duration;
 
 @Component
 public class HttpClientMonitor {
     private final ObjectMonitor<HttpClient> monitorManager;
+    private final ThreadMonitor threadMonitor;
 
     public HttpClientMonitor() {
         monitorManager = new ObjectMonitor<>(HttpClient.class);
@@ -48,6 +46,9 @@ public class HttpClientMonitor {
 
             }
         });
+
+        threadMonitor = new ThreadMonitor(new String[]{"Connection evictor"});
+        threadMonitor.start();
     }
 
     public void monitor(HttpClient factory) {
