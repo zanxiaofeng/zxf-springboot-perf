@@ -45,7 +45,8 @@ public class ThreadMonitor {
         for (ThreadInfo thread : threads) {
             String threadInfo = thread + " - " + Arrays.asList(thread.getStackTrace());
             for (String searchKey : searchKeys) {
-                if (!threadInfo.contains("ThreadMonitor-") && threadInfo.contains(searchKey)) {
+                if (!threadInfo.contains("ThreadMonitor-") && !threadInfo.contains("ClassMonitor-")
+                        && threadInfo.contains(searchKey)) {
                     foundCount++;
                     if (logFound) {
                         System.out.println("⚠️ 线程泄漏: " + thread + Arrays.asList(thread.getStackTrace()));

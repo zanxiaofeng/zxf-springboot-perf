@@ -51,7 +51,7 @@ public class HttpClientMonitor {
 //            }
 //        });
 
-        threadMonitor = new ThreadMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http", "Connection evictor"}, false);
+        threadMonitor = new ThreadMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http", "Connection evictor"}, true);
         threadMonitor.start();
 
         classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http"}, 1000);
