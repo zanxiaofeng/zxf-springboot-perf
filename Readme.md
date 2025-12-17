@@ -42,7 +42,6 @@
         }
     }
 ```
-
 ## org.apache.hc.client5.http.impl.IdleConnectionEvictor
 ```
 public void shutdown() {
@@ -85,79 +84,133 @@ public void shutdown() {
 # Apache Httpclient4 相关的内存泄漏风险点
 ## org.springframework.http.client.HttpComponentsClientHttpRequestFactory
 ```
-    /**
-     * Shutdown hook that closes the underlying {@link HttpClientConnectionManager}'s
-     * connection pool, if any.
-     */
-    @Override
-    public void destroy() throws Exception {
-        HttpClient httpClient = getHttpClient();
-        if (httpClient instanceof Closeable closeable) {
-            closeable.close();
-        }
-    }
+	/**
+	 * Shutdown hook that closes the underlying
+	 * {@link org.apache.http.conn.HttpClientConnectionManager ClientConnectionManager}'s
+	 * connection pool, if any.
+	 */
+	@Override
+	public void destroy() throws Exception {
+		HttpClient httpClient = getHttpClient();
+		if (httpClient instanceof Closeable) {
+			((Closeable) httpClient).close();
+		}
+	}
 ```
-## org.apache.hc.client5.http.impl.classic.InternalHttpClient
+## org.apache.http.impl.client.InternalHttpClient
 ```
     @Override
     public void close() {
-        close(CloseMode.GRACEFUL);
-    }
-
-    @Override
-    public void close(final CloseMode closeMode) {
         if (this.closeables != null) {
-            Closeable closeable;
-            while ((closeable = this.closeables.poll()) != null) {
+            for (final Closeable closeable: this.closeables) {
                 try {
-                    if (closeable instanceof ModalCloseable) {
-                        ((ModalCloseable) closeable).close(closeMode);
-                    } else {
-                        closeable.close();
-                    }
+                    closeable.close();
                 } catch (final IOException ex) {
-                    LOG.error(ex.getMessage(), ex);
+                    this.log.error(ex.getMessage(), ex);
                 }
             }
         }
     }
 ```
 
-## org.apache.hc.client5.http.impl.IdleConnectionEvictor
+## org.apache.http.impl.client.IdleConnectionEvictor
 ```
-public void shutdown() {
-    thread.interrupt();
-}
-```
-## org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager
-```
-    @Override
-    public void close() {
-        close(CloseMode.GRACEFUL);
+    public void shutdown() {
+        thread.interrupt();
     }
-
+```
+## org.apache.http.impl.conn.PoolingHttpClientConnectionManager
+```
     @Override
-    public void close(final CloseMode closeMode) {
-        if (this.closed.compareAndSet(false, true)) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Shutdown connection pool {}", closeMode);
-            }
-            this.pool.close(closeMode);
-            LOG.debug("Connection pool shut down");
+    protected void finalize() throws Throwable {
+        try {
+            shutdown();
+        } finally {
+            super.finalize();
         }
-    }
-```
-## org.apache.hc.client5.http.impl.io.BasicHttpClientConnectionManager
-```
-    @Override
-    public void close() {
-        close(CloseMode.GRACEFUL);
     }
     
     @Override
-    public void close(final CloseMode closeMode) {
-        if (this.closed.compareAndSet(false, true)) {
-            closeConnection(closeMode);
+    public void close() {
+        shutdown();
+    }
+    
+    @Override
+    public void shutdown() {
+        if (this.isShutDown.compareAndSet(false, true)) {
+            this.log.debug("Connection manager is shutting down");
+            try {
+                this.pool.enumLeased(new PoolEntryCallback<HttpRoute, ManagedHttpClientConnection>() {
+
+                    @Override
+                    public void process(final PoolEntry<HttpRoute, ManagedHttpClientConnection> entry) {
+                        final ManagedHttpClientConnection connection = entry.getConnection();
+                        if (connection != null) {
+                            try {
+                                connection.shutdown();
+                            } catch (final IOException iox) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("I/O exception shutting down connection", iox);
+                                }
+                            }
+                        }
+                    }
+
+                });
+                this.pool.shutdown();
+            } catch (final IOException ex) {
+                this.log.debug("I/O exception shutting down connection manager", ex);
+            }
+            this.log.debug("Connection manager shut down");
+        }
+    }
+```
+## org.apache.http.impl.conn.BasicHttpClientConnectionManager
+```
+    @Override
+    protected void finalize() throws Throwable {
+        try {
+            shutdown();
+        } finally { // Make sure we call overridden method even if shutdown barfs
+            super.finalize();
+        }
+    }
+
+    @Override
+    public void close() {
+        if (this.isShutdown.compareAndSet(false, true)) {
+            closeConnection();
+        }
+    }
+    
+    @Override
+    public void shutdown() {
+        if (this.isShutdown.compareAndSet(false, true)) {
+            if (this.conn != null) {
+                this.log.debug("Shutting down connection");
+                try {
+                    this.conn.shutdown();
+                } catch (final IOException iox) {
+                    if (this.log.isDebugEnabled()) {
+                        this.log.debug("I/O exception shutting down connection", iox);
+                    }
+                }
+                this.conn = null;
+            }
+        }
+    }
+  
+    private synchronized void closeConnection() {
+        if (this.conn != null) {
+            this.log.debug("Closing connection");
+            try {
+                this.conn.close();
+            } catch (final IOException iox) {
+                if (this.log.isDebugEnabled()) {
+                    this.log.debug("I/O exception closing connection", iox);
+                }
+            }
+            this.conn = null;
         }
     }
 ```
