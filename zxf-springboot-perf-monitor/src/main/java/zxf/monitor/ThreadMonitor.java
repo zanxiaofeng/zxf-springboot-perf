@@ -37,7 +37,7 @@ public class ThreadMonitor {
         for (ThreadInfo thread : threads) {
             for (String searchKey : searchKeys) {
                 if (thread.getThreadName().contains(searchKey)) {
-                    System.out.println("⚠️ 线程泄漏: " + thread.getThreadName());
+                    System.out.println("⚠️ 线程泄漏: " + thread + Arrays.asList(thread.getStackTrace()).toString());
                 }
             }
         }
