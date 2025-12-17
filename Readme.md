@@ -1,9 +1,10 @@
 # Apache HTTP server benchmarking tool
-- ab -c 10 -n 1000000 http://localhost:8080/test/new
+- ab -c 10 -n 1000000 http://localhost:8080/httpclient/new/default
+- ab -c 10 -n 1000000 http://localhost:8080/httpclient/new/custom/pool
 
 # 资源泄露的原因
-- 应用创建的应用层对象（内存new/free）在某个地方Hold住了，比如静态对象
-- 应用创建的系统层对象（线程start/interrupt，线程池，OS资源等）没有主动及时释放
+- 应用层对象（内存new/free）创建后在某个地方引用了导致不能释放，比如类静态变量引用，线程局部变量引用
+- 系统层对象（线程start/interrupt，线程池，OS资源等）创建后没有主动及时释放
 
 # 如何确定类是否有资源泄露
 - 实现： DisposableBean/Closeable

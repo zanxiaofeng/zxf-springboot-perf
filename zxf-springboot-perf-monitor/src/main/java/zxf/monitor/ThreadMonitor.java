@@ -25,14 +25,15 @@ public class ThreadMonitor {
     }
 
     public void start() {
-        monitorExecutor.scheduleWithFixedDelay(this::checkHttpClientThreads, 30, 30, TimeUnit.SECONDS);
+        monitorExecutor.scheduleWithFixedDelay(this::checkThreads, 60, 60, TimeUnit.SECONDS);
     }
 
     public void stop() {
         monitorExecutor.shutdown();
     }
 
-    private void checkHttpClientThreads() {
+    private void checkThreads() {
+        System.out.println("checkThreads");
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
         ThreadInfo[] threads = threadBean.dumpAllThreads(false, false);
 
@@ -41,7 +42,7 @@ public class ThreadMonitor {
         for (ThreadInfo thread : threads) {
             String threadInfo = thread + " - " + Arrays.asList(thread.getStackTrace());
             for (String searchKey : searchKeys) {
-                if (threadInfo.contains(searchKey)) {
+                if (!threadInfo.contains("ThreadMonitor-") && threadInfo.contains(searchKey)) {
                     foundCount++;
                     if (logFound) {
                         System.out.println("⚠️ 线程泄漏: " + thread + Arrays.asList(thread.getStackTrace()));

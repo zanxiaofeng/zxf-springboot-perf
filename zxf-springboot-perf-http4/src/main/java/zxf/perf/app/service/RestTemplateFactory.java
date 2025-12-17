@@ -16,13 +16,18 @@ public class RestTemplateFactory {
     @Autowired
     private HttpClientMonitor monitor;
 
-    public RestTemplate createNewRestTemplate() {
+    public RestTemplate newRestTemplateWithDefaultHttpClient() throws Exception {
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
+        monitor.monitor(requestFactory.getHttpClient());
+        return restTemplate;
+    }
+
+    public RestTemplate newRestTemplateWithCustomHttpClientWithPool() throws Exception {
         HttpClient httpClient = HttpClients.custom().setConnectionManager(new PoolingHttpClientConnectionManager())
-                .evictIdleConnections(30, TimeUnit.SECONDS)
-                .build();
+                .evictIdleConnections(30, TimeUnit.SECONDS).build();
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
         RestTemplate restTemplate = new RestTemplate(requestFactory);
-
         monitor.monitor(httpClient);
         return restTemplate;
     }

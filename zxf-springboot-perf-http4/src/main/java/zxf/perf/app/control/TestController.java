@@ -9,14 +9,20 @@ import zxf.perf.app.service.RestTemplateFactory;
 
 @Slf4j
 @RestController
-@RequestMapping("/test")
+@RequestMapping("/httpclient")
 public class TestController {
     @Autowired
     private RestTemplateFactory restTemplateFactory;
 
-    @GetMapping("/new")
-    public ResponseEntity<String> okTest() {
-        RestTemplate restTemplate = restTemplateFactory.createNewRestTemplate();
+    @GetMapping("/new/default")
+    public ResponseEntity<String> newDefault() throws Exception {
+        RestTemplate restTemplate = restTemplateFactory.newRestTemplateWithDefaultHttpClient();
+        return ResponseEntity.ok(testRestTemplate(restTemplate));
+    }
+
+    @GetMapping("/new/custom/pool")
+    public ResponseEntity<String> okTest() throws Exception {
+        RestTemplate restTemplate = restTemplateFactory.newRestTemplateWithCustomHttpClientWithPool();
         return ResponseEntity.ok(testRestTemplate(restTemplate));
     }
 
