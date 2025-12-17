@@ -2,6 +2,7 @@ package zxf.monitor;
 
 import zxf.util.JCmdInvoker;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -12,12 +13,14 @@ import java.util.regex.Pattern;
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 public class ClassMonitor {
-    Pattern pattern = Pattern.compile("^\\s*\\d+:\\s+(\\d+)\\s+(\\d+)\\s+([^\\s]+)");
+    private static final Pattern pattern = Pattern.compile("^\\s*\\d+:\\s+(\\d+)\\s+(\\d+)\\s+([^\\s]+)");
+    private final Duration checkInterval;
     private final String[] searchKeys;
     private final long instanceLimit;
     private final ScheduledExecutorService monitorExecutor;
 
-    public ClassMonitor(String[] searchKeys, long instanceLimit) {
+    public ClassMonitor(Duration checkInterval, String[] searchKeys, long instanceLimit) {
+        this.checkInterval = checkInterval;
         this.searchKeys = searchKeys;
         this.instanceLimit = instanceLimit;
         this.monitorExecutor = newSingleThreadScheduledExecutor(r -> {
@@ -28,7 +31,7 @@ public class ClassMonitor {
     }
 
     public void start() {
-        monitorExecutor.scheduleWithFixedDelay(this::checkClasses, 60, 60, TimeUnit.SECONDS);
+        monitorExecutor.scheduleWithFixedDelay(this::checkClasses, checkInterval.toSeconds(), checkInterval.toSeconds(), TimeUnit.SECONDS);
     }
 
     public void stop() {

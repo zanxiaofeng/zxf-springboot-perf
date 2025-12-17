@@ -3,6 +3,7 @@ package zxf.monitor;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -10,11 +11,13 @@ import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.Executors.*;
 
 public class ThreadMonitor {
+    private final Duration checkInterval;
     private final String[] searchKeys;
     private final Boolean logFound;
     private final ScheduledExecutorService monitorExecutor;
 
-    public ThreadMonitor(String[] searchKeys, Boolean logFound) {
+    public ThreadMonitor(Duration checkInterval, String[] searchKeys, Boolean logFound) {
+        this.checkInterval = checkInterval;
         this.searchKeys = searchKeys;
         this.logFound = logFound;
         this.monitorExecutor = newSingleThreadScheduledExecutor(r -> {
@@ -25,7 +28,7 @@ public class ThreadMonitor {
     }
 
     public void start() {
-        monitorExecutor.scheduleWithFixedDelay(this::checkThreads, 60, 60, TimeUnit.SECONDS);
+        monitorExecutor.scheduleWithFixedDelay(this::checkThreads, checkInterval.toSeconds(), checkInterval.toSeconds(), TimeUnit.SECONDS);
     }
 
     public void stop() {
