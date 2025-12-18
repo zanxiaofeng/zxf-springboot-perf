@@ -1,58 +1,7 @@
 server:
   port: 8080
 
-spring:
-  application:
-    name: zxf-springboot-trace-webmvc
-  profiles:
-    include: trace-my
-
-zxf:
-  jwt:
-    enabled: true
-    tokenUrl: http://localhost:8089/jwt/token
-    client:
-      readTimeout: 30s
-      copyHeaders:
-        - X-Request-Id
-    accounts:
-      INTERNAL:
-        username: admin
-        password: 123456
-
-  file:
-    enabled: true
-    apiUrl: http://localhost:8089/file
-    client:
-      readTimeout: 30s
-      copyHeaders:
-        - X-Request-Id
-    retry:
-      maxAttempts: 3
-      delay: 2000
-      multiplier: 2
-    cache:
-      ttlInMinutes: 10
-
-  feature-toggle:
-    enabled: true
-    defaultEnv: SIT
-    filePath: /opt/myapp
-    fileName: feature-toggle.properties
-
-  encryption:
-    enabled: true
-    keyPhrase: 1234567899
-
-  rest-tools:
-    feature-toggle:
-      enabled: true
-    network:
-      enabled: true
-
 logging:
   level:
     root: INFO
-    zxf.trace: DEBUG
-    zxf.utils: DEBUG
-    org.springframework.web: INFO
+    org.apache.hc.client5: DEBUG
