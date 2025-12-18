@@ -3,6 +3,10 @@ package zxf.perf.app.http5;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.springframework.stereotype.Component;
 import zxf.monitor.*;
+import zxf.monitor.object.MonitorListener;
+import zxf.monitor.object.MonitorStats;
+import zxf.monitor.object.ObjectMonitor;
+import zxf.monitor.object.TReference;
 
 import java.io.Closeable;
 import java.lang.reflect.Field;

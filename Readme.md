@@ -3,8 +3,8 @@
 - ab -c 10 -n 1000000 http://localhost:8080/httpclient/new/custom/pool
 
 # 资源泄露的原因
-- 应用层对象（内存new/free）创建后在某个地方引用了导致不能释放，比如类静态变量引用，线程局部变量引用
-- 系统层对象（线程start/interrupt，线程池，OS资源等）创建后没有主动及时释放
+- 应用层对象（内存资源，new/free）创建后在某个地方引用了导致不能释放，比如类静态变量引用，线程局部变量引用
+- 系统层对象（线程start/interrupt，线程池shutdown，文件描述符open/close，JNI资源，图形和GUI资源）创建后没有主动及时释放
 
 # 如何确定类是否有资源泄露
 - 实现： DisposableBean/Closeable

@@ -1,4 +1,4 @@
-package zxf.monitor;
+package zxf.monitor.object;
 
 import lombok.Data;
 

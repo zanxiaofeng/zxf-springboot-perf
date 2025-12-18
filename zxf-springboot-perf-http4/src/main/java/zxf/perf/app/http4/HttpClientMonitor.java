@@ -3,6 +3,10 @@ package zxf.perf.app.http4;
 import org.apache.http.client.HttpClient;
 import org.springframework.stereotype.Component;
 import zxf.monitor.*;
+import zxf.monitor.object.MonitorListener;
+import zxf.monitor.object.MonitorStats;
+import zxf.monitor.object.ObjectMonitor;
+import zxf.monitor.object.TReference;
 
 import java.io.Closeable;
 import java.lang.reflect.Field;
@@ -14,6 +18,7 @@ public class HttpClientMonitor {
     private final ObjectMonitor<Closeable> closeableMonitor;
     private final ThreadMonitor threadMonitor;
     private final ClassMonitor classMonitor;
+    private final DescriptorMonitor descriptorMonitor;
 
     public HttpClientMonitor() {
         closeableMonitor = new ObjectMonitor<>(Closeable.class);
@@ -54,8 +59,11 @@ public class HttpClientMonitor {
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http", "Connection evictor"}, 1);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http","javax.net.ssl"}, 5000);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http","javax.net.ssl", "java.lang.Thread"}, 5000);
         classMonitor.start();
+
+        descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(10), 5000);
+        descriptorMonitor.start();
     }
 
     public void monitor(HttpClient httpClient) throws Exception {
