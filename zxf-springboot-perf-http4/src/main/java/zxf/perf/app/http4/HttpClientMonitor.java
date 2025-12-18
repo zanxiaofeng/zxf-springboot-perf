@@ -52,17 +52,17 @@ public class HttpClientMonitor {
 
             @Override
             public void onStatsUpdated(MonitorStats stats) {
-
+                // 可以记录统计信息到日志
             }
         });
 
-        threadMonitor = new ThreadMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http", "Connection evictor"}, 1);
+        threadMonitor = new ThreadMonitor(Duration.ofSeconds(90), new String[]{"org.apache.http", "Connection evictor"}, 1000);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http","javax.net.ssl", "java.lang.Thread"}, 5000);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(90), new String[]{"org.apache.http","javax.net.ssl", "java.lang.Thread"}, 5000);
         classMonitor.start();
 
-        descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(10), 5000);
+        descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(90), 5000);
         descriptorMonitor.start();
     }
 

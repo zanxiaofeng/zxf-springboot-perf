@@ -1,0 +1,57 @@
+ab -c 10 -n 1000000 http://localhost:8080/httpclient/new/default
+>>>>>>>>>>>>>>>>>>>>>
+This is ApacheBench, Version 2.3 <$Revision: 1903618 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking localhost (be patient)
+Completed 100000 requests
+Completed 200000 requests
+Completed 300000 requests
+Completed 400000 requests
+Completed 500000 requests
+Completed 600000 requests
+Completed 700000 requests
+Completed 800000 requests
+Completed 900000 requests
+Completed 1000000 requests
+Finished 1000000 requests
+
+
+Server Software:
+Server Hostname:        localhost
+Server Port:            8080
+
+Document Path:          /httpclient/new/default
+Document Length:        69977 bytes
+
+Concurrency Level:      10
+Time taken for tests:   165.053 seconds
+Complete requests:      1000000
+Failed requests:        0
+Total transferred:      70113000000 bytes
+HTML transferred:       69977000000 bytes
+Requests per second:    6058.64 [#/sec] (mean)
+Time per request:       1.651 [ms] (mean)
+Time per request:       0.165 [ms] (mean, across all concurrent requests)
+Transfer rate:          414833.66 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.0      0       4
+Processing:     1    2   0.7      1     177
+Waiting:        0    1   0.6      1     176
+Total:          1    2   0.7      2     177
+WARNING: The median and mean for the processing time are not within a normal deviation
+        These results are probably not that reliable.
+
+Percentage of the requests served within a certain time (ms)
+  50%      2
+  66%      2
+  75%      2
+  80%      2
+  90%      2
+  95%      2
+  98%      3
+  99%      3
+ 100%    177 (longest request)
