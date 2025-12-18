@@ -54,7 +54,7 @@ public class HttpClientMonitor {
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(10), new String[]{"org.apache.hc.client5", "idle-connection-evictor"}, 1);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.hc.client5"}, 1000);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.hc.client5","javax.net.ssl"}, 5000);
         classMonitor.start();
     }
 

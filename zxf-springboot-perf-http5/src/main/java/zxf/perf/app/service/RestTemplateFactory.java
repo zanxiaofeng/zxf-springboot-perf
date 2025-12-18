@@ -10,8 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import zxf.perf.app.http5.HttpClientMonitor;
 
-import java.util.concurrent.TimeUnit;
-
 @Component
 public class RestTemplateFactory {
     @Autowired

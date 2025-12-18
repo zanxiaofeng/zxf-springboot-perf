@@ -54,7 +54,7 @@ public class HttpClientMonitor {
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http", "Connection evictor"}, 1);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http"}, 1000);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(10), new String[]{"org.apache.http","javax.net.ssl"}, 5000);
         classMonitor.start();
     }
 
