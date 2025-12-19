@@ -4,4 +4,4 @@ server:
 logging:
   level:
     root: INFO
-    org.apache.hc.client5: DEBUG
+    org.apache.hc.client5.http.impl: DEBUG

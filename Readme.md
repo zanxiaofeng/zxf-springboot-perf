@@ -343,3 +343,18 @@ public void shutdown() {
         conn.close();
     }
 ```
+
+## How TCP socket was closed in apache httpclient4?
+```
+java.base/java.net.Socket.close(Socket.java:1751), 
+org.apache.http.impl.BHttpConnectionBase.close(BHttpConnectionBase.java:320), 
+org.apache.http.impl.conn.LoggingManagedHttpClientConnection.close(LoggingManagedHttpClientConnection.java:81), 
+org.apache.http.impl.conn.CPoolEntry.closeConnection(CPoolEntry.java:70), 
+org.apache.http.impl.conn.CPoolEntry.close(CPoolEntry.java:96), 
+org.apache.http.pool.AbstractConnPool.shutdown(AbstractConnPool.java:149), 
+org.apache.http.impl.conn.PoolingHttpClientConnectionManager.shutdown(PoolingHttpClientConnectionManager.java:430), 
+org.apache.http.impl.conn.PoolingHttpClientConnectionManager.finalize(PoolingHttpClientConnectionManager.java:207), 
+java.base/java.lang.System$2.invokeFinalize(System.java:2392), 
+java.base/java.lang.ref.Finalizer.runFinalizer(Finalizer.java:96), 
+java.base/java.lang.ref.Finalizer$FinalizerThread.run(Finalizer.java:174)
+```
