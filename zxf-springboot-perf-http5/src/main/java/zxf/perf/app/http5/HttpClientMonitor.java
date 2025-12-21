@@ -11,7 +11,6 @@ import zxf.monitor.object.TReference;
 import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Component
@@ -60,7 +59,7 @@ public class HttpClientMonitor {
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(90), new String[]{"org.apache.hc.client5", "idle-connection-evictor"}, 1000);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(5), new String[]{"org.apache.hc.client5","java.net", "javax.net", "sun.net", "sun.nio", "java.lang.Thread"}, 0);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(5), new String[]{"org.apache.hc.client5","java.net.Socket", "javax.net", "sun.net", "sun.nio.ch.NioSocketImpl", "java.lang.Thread"}, 0);
         classMonitor.start();
 
         descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(90), 5000);
