@@ -4,8 +4,8 @@
 - ab -c 10 -n 1000000 http://localhost:8080/httpclient/new/default?close=false
 
 # 资源泄露的原因
-- 应用层对象（内存资源，new/free）创建后在某个地方引用了导致不能释放，比如类静态变量引用，线程局部变量引用
-- 系统层对象（线程start/interrupt，线程池shutdown，文件描述符open/close，JNI资源，图形和GUI资源）创建后没有主动及时释放
+- 应用层对象（内存资源，new/free）通常由垃圾收集器在对象不再被引用后自动释放，但如果在某个地方长期引用会导致不能释放，比如类静态变量引用，线程局部变量引用
+- 系统层对象（线程start/interrupt，线程池shutdown，文件描述符open/close，JNI资源，图形和GUI资源）不再使用后需要手动调用相关函数主动释放
 
 # 如何确定类是否有资源泄露
 - 实现： DisposableBean/Closeable
