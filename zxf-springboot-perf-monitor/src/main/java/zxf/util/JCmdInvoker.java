@@ -9,17 +9,27 @@ import java.util.List;
 
 public class JCmdInvoker {
     public static List<String> getClassHistogram() throws Exception {
-        Process process = Runtime.getRuntime().exec(buildJCmdCommand() + " " + getCurrentPid() + " GC.class_histogram");
-
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+        Process process = null;
+        try {
+            process = Runtime.getRuntime().exec(buildJCmdCommand() + " " + getCurrentPid() + " GC.class_histogram");
             List<String> result = new ArrayList<>();
 
-            String line;
-            while ((line = reader.readLine()) != null) {
-                result.add(line);
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.add(line);
+                }
             }
-            process.waitFor();
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("jcmd command failed with exit code: " + exitCode);
+            }
             return result;
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
         }
     }
 

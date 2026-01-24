@@ -116,19 +116,24 @@ public class ObjectMonitor<T> {
             return null;
         }
 
+        TReference<T> ref;
+        MonitorListener<T> currentListener;
         synchronized (this) {
-            TReference<T> ref = new TReference<>(object, referenceQueue, metadata);
+            ref = new TReference<>(object, referenceQueue, metadata);
             activeReferences.put(ref.getId(), ref);
             totalCreated.incrementAndGet();
-            if (listener != null) {
-                try {
-                    listener.onObjectRegistered(ref);
-                } catch (Exception e) {
-                    // 忽略监听器异常
-                }
-            }
-            return ref;
+            currentListener = listener;
         }
+
+        // 回调移出同步块，避免死锁
+        if (currentListener != null) {
+            try {
+                currentListener.onObjectRegistered(ref);
+            } catch (Exception e) {
+                // 忽略监听器异常
+            }
+        }
+        return ref;
     }
 
     /**
@@ -188,21 +193,35 @@ public class ObjectMonitor<T> {
      * 清理已回收的引用
      */
     private void cleanupCollectedReferences() {
+        List<TReference<T>> collectedRefs = new ArrayList<>();
         Reference<? extends T> ref;
+        MonitorListener<T> currentListener;
+
+        // 第一阶段：收集已回收的引用
         while ((ref = referenceQueue.poll()) != null) {
             @SuppressWarnings("unchecked")
             TReference<T> trackedRef = (TReference<T>) ref;
             trackedRef.markAsCollected();
+            collectedRefs.add(trackedRef);
+        }
 
-            String refId = trackedRef.getId();
-            if (activeReferences.remove(refId) != null) {
-                totalCollected.incrementAndGet();
-                if (listener != null) {
-                    try {
-                        listener.onObjectCollected(trackedRef);
-                    } catch (Exception e) {
-                        // 忽略监听器异常
-                    }
+        // 第二阶段：移除并更新统计
+        synchronized (this) {
+            currentListener = listener;
+            for (TReference<T> trackedRef : collectedRefs) {
+                if (activeReferences.remove(trackedRef.getId()) != null) {
+                    totalCollected.incrementAndGet();
+                }
+            }
+        }
+
+        // 第三阶段：回调移出同步块，避免死锁
+        if (currentListener != null) {
+            for (TReference<T> trackedRef : collectedRefs) {
+                try {
+                    currentListener.onObjectCollected(trackedRef);
+                } catch (Exception e) {
+                    // 忽略监听器异常
                 }
             }
         }
@@ -221,42 +240,69 @@ public class ObjectMonitor<T> {
             }
         }
 
+        // 用于存储需要回调的事件
+        List<LeakEvent> leakEvents = new ArrayList<>();
+        List<LeakEvent> confirmEvents = new ArrayList<>();
+        MonitorListener<T> currentListener;
+
+        // 第一阶段：检测并标记泄漏，收集回调事件
         synchronized (this) {
+            currentListener = listener;
             for (TReference<T> ref : activeReferences.values()) {
-                if (ref.isActive()) {
-                    if (ref.getAge().compareTo(monitorConfig.maxObjectAge) > 0) {
-                        ref.markAsLeakSuspected("对象存活时间超过 " + monitorConfig.maxObjectAge);
-                        totalLeakSuspected.incrementAndGet();
-                        if (listener != null) {
-                            try {
-                                listener.onLeakSuspected(ref, "对象存活时间超过 " + monitorConfig.maxObjectAge);
-                            } catch (Exception e) {
-                                // 忽略监听器异常
-                            }
-                        }
-                    }
-                    continue;
+                if (ref.isActive() && ref.getAge().compareTo(monitorConfig.maxObjectAge) > 0) {
+                    String reason = "对象存活时间超过 " + monitorConfig.maxObjectAge;
+                    ref.markAsLeakSuspected(reason);
+                    totalLeakSuspected.incrementAndGet();
+                    leakEvents.add(new LeakEvent(ref, reason));
                 }
             }
 
             MonitorStats currentStats = getStats();
             if (currentStats.totalLeakSuspected() > monitorConfig.leakSuspectThreshold) {
                 for (TReference<T> ref : activeReferences.values()) {
-                    if (!ref.isActive()) {
-                        continue;
-                    }
-
-                    ref.markAsLeakConfirmed("Active count exceeds confirmation threshold");
-                    totalLeakConfirmed.incrementAndGet();
-                    if (listener != null) {
-                        try {
-                            listener.onLeakConfirmed(ref, "Active count exceeds confirmation threshold");
-                        } catch (Exception e) {
-                            // 忽略监听器异常
-                        }
+                    if (ref.isActive()) {
+                        String reason = "Active count exceeds confirmation threshold";
+                        ref.markAsLeakConfirmed(reason);
+                        totalLeakConfirmed.incrementAndGet();
+                        confirmEvents.add(new LeakEvent(ref, reason));
                     }
                 }
             }
+        }
+
+        // 第二阶段：回调移出同步块，避免死锁
+        if (currentListener != null) {
+            for (LeakEvent event : leakEvents) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    TReference<T> ref = (TReference<T>) event.ref;
+                    currentListener.onLeakSuspected(ref, event.reason);
+                } catch (Exception e) {
+                    // 忽略监听器异常
+                }
+            }
+            for (LeakEvent event : confirmEvents) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    TReference<T> ref = (TReference<T>) event.ref;
+                    currentListener.onLeakConfirmed(ref, event.reason);
+                } catch (Exception e) {
+                    // 忽略监听器异常
+                }
+            }
+        }
+    }
+
+    /**
+     * 泄漏事件容器
+     */
+    private static class LeakEvent {
+        final TReference<?> ref;
+        final String reason;
+
+        LeakEvent(TReference<?> ref, String reason) {
+            this.ref = ref;
+            this.reason = reason;
         }
     }
 
