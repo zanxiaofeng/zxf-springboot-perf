@@ -9,27 +9,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
-import zxf.perf.app.service.HttpClientFactory;
-import zxf.perf.app.service.RestTemplateFactory;
+import zxf.perf.app.service.WebClientFactory;
 
 import java.io.IOException;
-import java.time.Duration;
 
 @Slf4j
 @RestController
 public class TestController {
     @Autowired
-    private RestTemplateFactory restTemplateFactory;
-    @Autowired
-    private HttpClientFactory httpClientFactory;
+    private WebClientFactory webClientFactory;
 
     @GetMapping("/template/new/default")
     public ResponseEntity<String> newRestTemplateDefault(@RequestParam(required = false) Integer delay) throws Exception {
         if (delay != null) {
             Thread.sleep(delay * 1000);
         }
-        RestTemplate restTemplate = restTemplateFactory.newRestTemplateWithDefaultHttpClient();
-        return ResponseEntity.ok(testRestTemplate(restTemplate, delay));
+        return ResponseEntity.ok(testRestTemplate(webClientFactory.newRestTemplateWithDefaultHttpClient(), delay));
     }
 
     @GetMapping("/template/new/custom/pool")
@@ -37,8 +32,7 @@ public class TestController {
         if (delay != null) {
             Thread.sleep(delay * 1000);
         }
-        RestTemplate restTemplate = restTemplateFactory.newRestTemplateWithCustomHttpClientWithPool();
-        return ResponseEntity.ok(testRestTemplate(restTemplate, delay));
+        return ResponseEntity.ok(testRestTemplate(webClientFactory.newRestTemplateWithCustomHttpClientWithPool(), delay));
     }
 
     @GetMapping("/httpclient/new/default")
@@ -46,8 +40,7 @@ public class TestController {
         if (delay != null) {
             Thread.sleep(delay * 1000);
         }
-        CloseableHttpClient httpClient = httpClientFactory.newHttpClient();
-        return ResponseEntity.ok(testHttpClient(httpClient, delay, close));
+        return ResponseEntity.ok(testHttpClient(webClientFactory.newHttpClient(), delay, close));
     }
 
 

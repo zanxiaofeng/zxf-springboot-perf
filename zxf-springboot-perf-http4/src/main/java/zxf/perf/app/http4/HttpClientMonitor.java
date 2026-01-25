@@ -8,10 +8,15 @@ import zxf.monitor.object.MonitorStats;
 import zxf.monitor.object.ObjectMonitor;
 import zxf.monitor.object.TReference;
 
+import javax.sound.sampled.BooleanControl;
 import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Component
 public class HttpClientMonitor {
@@ -19,6 +24,7 @@ public class HttpClientMonitor {
     private final ThreadMonitor threadMonitor;
     private final ClassMonitor classMonitor;
     private final DescriptorMonitor descriptorMonitor;
+    private final Map<Class, Boolean> closableClasses = new ConcurrentHashMap<>();
 
     public HttpClientMonitor() {
         closeableMonitor = new ObjectMonitor<>(Closeable.class);
@@ -59,10 +65,23 @@ public class HttpClientMonitor {
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(90), new String[]{"org.apache.http", "Connection evictor"}, 1000);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(90), new String[]{"org.apache.http","java.net", "javax.net", "sun.net", "sun.nio", "java.lang.Thread"}, 0);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(90),
+                new String[]{
+                        "org.apache.http",           // HttpClient 核心
+                        "org.apache.http.impl.conn", // 连接管理
+                        "org.apache.http.conn",      // 连接接口
+                        "org.apache.http.pool",      // 连接池
+                        "org.apache.http.impl.client", // 客户端实现
+                        "java.net.Socket",           // Socket 连接
+                        "java.net.SocksSocketImpl",  // SOCKS 代理
+                        "javax.net.ssl",             // SSL/TLS
+                        "sun.net.www",               // HTTP 协议处理器
+                        "sun.nio.ch",                // NIO 通道
+                        "java.lang.Thread"           // 线程
+                }, 0);
         classMonitor.start();
 
-        descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(90), 5000);
+        descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(90), 5000, true);
         descriptorMonitor.start();
     }
 
@@ -71,6 +90,10 @@ public class HttpClientMonitor {
         field.setAccessible(true);
         List<Closeable> closeables = (List<Closeable>) field.get(httpClient);
         for (Closeable closeable : closeables) {
+            if (!closableClasses.containsKey(closeable.getClass())) {
+                closableClasses.putIfAbsent(closeable.getClass(), true);
+                System.out.println("closable class： " + closeable.getClass());
+            }
             closeableMonitor.register(closeable, null);
         }
     }

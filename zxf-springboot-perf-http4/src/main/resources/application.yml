@@ -4,4 +4,4 @@ server:
 logging:
   level:
     root: INFO
-    org.apache.http.impl.conn: DEBUG
+    org.apache.http.impl.conn: ERROR

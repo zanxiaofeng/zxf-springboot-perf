@@ -11,6 +11,8 @@ import zxf.monitor.object.TReference;
 import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Component
@@ -19,6 +21,7 @@ public class HttpClientMonitor {
     private final ThreadMonitor threadMonitor;
     private final ClassMonitor classMonitor;
     private final DescriptorMonitor descriptorMonitor;
+    private final Map<Class, Boolean> closableClasses = new ConcurrentHashMap<>();
 
     public HttpClientMonitor() {
         closeableMonitor = new ObjectMonitor<>(Closeable.class);
@@ -32,12 +35,12 @@ public class HttpClientMonitor {
         }, new MonitorListener<Closeable>() {
             @Override
             public void onObjectRegistered(TReference<Closeable> ref) {
-                //System.out.println("注册连接: " + ref.getSummary());
+                System.out.println("注册连接: " + ref.getSummary());
             }
 
             @Override
             public void onObjectCollected(TReference<Closeable> ref) {
-                //System.out.println("收集连接: " + ref.getSummary());
+                System.out.println("收集连接: " + ref.getSummary());
             }
 
             @Override
@@ -71,6 +74,10 @@ public class HttpClientMonitor {
         field.setAccessible(true);
         ConcurrentLinkedQueue<Closeable> closeables = (ConcurrentLinkedQueue<Closeable>) field.get(httpClient);
         for (Closeable closeable : closeables) {
+            if (!closableClasses.containsKey(closeable.getClass())) {
+                closableClasses.putIfAbsent(closeable.getClass(), true);
+                System.out.println("closable class： " + closeable.getClass());
+            }
             closeableMonitor.register(closeable, null);
         }
     }

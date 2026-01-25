@@ -3,6 +3,7 @@ package zxf.perf.app.service;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -16,7 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import zxf.perf.app.http5.HttpClientMonitor;
 
 @Component
-public class RestTemplateFactory {
+public class WebClientFactory {
     @Autowired
     private HttpClientMonitor monitor;
 
@@ -56,5 +57,11 @@ public class RestTemplateFactory {
         RestTemplate restTemplate = new RestTemplate(requestFactory);
         monitor.monitor(httpClient);
         return restTemplate;
+    }
+
+    public CloseableHttpClient newHttpClient() throws Exception {
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        monitor.monitor(httpClient);
+        return httpClient;
     }
 }

@@ -3,6 +3,7 @@ package zxf.perf.app.service;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.config.SocketConfig;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +15,7 @@ import zxf.perf.app.http4.HttpClientMonitor;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class RestTemplateFactory {
+public class WebClientFactory {
     @Autowired
     private HttpClientMonitor monitor;
 
@@ -45,5 +46,11 @@ public class RestTemplateFactory {
         RestTemplate restTemplate = new RestTemplate(requestFactory);
         monitor.monitor(httpClient);
         return restTemplate;
+    }
+
+    public CloseableHttpClient newHttpClient() throws Exception {
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        monitor.monitor(httpClient);
+        return httpClient;
     }
 }
