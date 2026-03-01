@@ -1,5 +1,7 @@
 package zxf.monitor.object;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.time.Duration;
@@ -15,6 +17,7 @@ import java.util.stream.Collectors;
  *
  * @author davis
  */
+@Slf4j
 public class ObjectMonitor<T> {
     private final Class<T> targetClass;
     private final MonitorConfig monitorConfig = new MonitorConfig();
@@ -48,7 +51,7 @@ public class ObjectMonitor<T> {
             return thread;
         });
         this.leakDetectionExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread thread = new Thread(r, "ObjectMonitor-LeadDetect-" + targetClass.getName());
+            Thread thread = new Thread(r, "ObjectMonitor-LeakDetect-" + targetClass.getName());
             thread.setDaemon(true);
             return thread;
         });
@@ -76,36 +79,31 @@ public class ObjectMonitor<T> {
                 monitorConfig.checkInterval.getSeconds(), TimeUnit.SECONDS);
 
         // 定期更新统计数据（每5秒）
-        statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getTatsInterval().getSeconds(),
-                monitorConfig.getTatsInterval().getSeconds(), TimeUnit.SECONDS);
+        statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getStatsInterval().getSeconds(),
+                monitorConfig.getStatsInterval().getSeconds(), TimeUnit.SECONDS);
     }
 
     /**
      * 停止监控
      */
     public void shutdown() {
-        cleanupExecutor.shutdown();
+        shutdownExecutor(cleanupExecutor, "Cleanup");
+        shutdownExecutor(leakDetectionExecutor, "LeakDetect");
+        shutdownExecutor(statsExecutor, "Stats");
+        log.info("[{}] 对象监控器已停止", targetClass.getName());
+    }
+
+    private void shutdownExecutor(ScheduledExecutorService executor, String name) {
+        executor.shutdown();
         try {
-            cleanupExecutor.awaitTermination(5, TimeUnit.SECONDS);
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                log.warn("[{}] {} executor did not terminate gracefully", targetClass.getName(), name);
+            }
         } catch (InterruptedException e) {
+            executor.shutdownNow();
             Thread.currentThread().interrupt();
         }
-
-        leakDetectionExecutor.shutdown();
-        try {
-            leakDetectionExecutor.awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        statsExecutor.shutdown();
-        try {
-            statsExecutor.awaitTermination(5, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        System.out.printf("[%s] 对象监控器已停止%n", targetClass.getName());
     }
 
     /**
@@ -171,13 +169,20 @@ public class ObjectMonitor<T> {
      */
     public MonitorStats getStats() {
         synchronized (this) {
-            long totalAge = activeReferences.values().stream().map(TReference::getAge)
-                    .map(Duration::getSeconds).reduce(0L, Long::sum);
-            double avgAge = activeReferences.size() > 0 ? (double) totalAge / activeReferences.size() : 0.0;
-
-            return new MonitorStats(targetClass.getName(), activeReferences.size(), totalCreated.get(), totalCollected.get(),
-                    totalLeakSuspected.get(), totalLeakConfirmed.get(), avgAge, Instant.now());
+            return computeStats();
         }
+    }
+
+    /**
+     * 计算统计信息（调用方必须持有锁）
+     */
+    private MonitorStats computeStats() {
+        long totalAge = activeReferences.values().stream().map(TReference::getAge)
+                .map(Duration::getSeconds).reduce(0L, Long::sum);
+        double avgAge = activeReferences.size() > 0 ? (double) totalAge / activeReferences.size() : 0.0;
+
+        return new MonitorStats(targetClass.getName(), activeReferences.size(), totalCreated.get(), totalCollected.get(),
+                totalLeakSuspected.get(), totalLeakConfirmed.get(), avgAge, Instant.now());
     }
 
     /**
@@ -257,7 +262,7 @@ public class ObjectMonitor<T> {
                 }
             }
 
-            MonitorStats currentStats = getStats();
+            MonitorStats currentStats = computeStats();
             if (currentStats.totalLeakSuspected() > monitorConfig.leakSuspectThreshold) {
                 for (TReference<T> ref : activeReferences.values()) {
                     if (ref.isActive()) {
@@ -275,8 +280,8 @@ public class ObjectMonitor<T> {
             for (LeakEvent event : leakEvents) {
                 try {
                     @SuppressWarnings("unchecked")
-                    TReference<T> ref = (TReference<T>) event.ref;
-                    currentListener.onLeakSuspected(ref, event.reason);
+                    TReference<T> typedRef = (TReference<T>) event.ref;
+                    currentListener.onLeakSuspected(typedRef, event.reason);
                 } catch (Exception e) {
                     // 忽略监听器异常
                 }
@@ -284,8 +289,8 @@ public class ObjectMonitor<T> {
             for (LeakEvent event : confirmEvents) {
                 try {
                     @SuppressWarnings("unchecked")
-                    TReference<T> ref = (TReference<T>) event.ref;
-                    currentListener.onLeakConfirmed(ref, event.reason);
+                    TReference<T> typedRef = (TReference<T>) event.ref;
+                    currentListener.onLeakConfirmed(typedRef, event.reason);
                 } catch (Exception e) {
                     // 忽略监听器异常
                 }
@@ -311,24 +316,26 @@ public class ObjectMonitor<T> {
      */
     private void updateStats() {
         MonitorStats stats = getStats();
-        System.out.printf(" === [%s] 对象监控统计 ===%n", targetClass.getName());
-        System.out.printf("活跃实例: %d%n", stats.activeCount());
-        System.out.printf("总计创建: %d%n", stats.totalCreated());
-        System.out.printf("已回收: %d (%.1f%%)%n",
-                stats.totalCollected(),
-                stats.totalCreated() > 0 ?
-                        (double) stats.totalCollected() / stats.totalCreated() * 100 : 0);
-        System.out.printf("疑似泄漏: %d%n", stats.totalLeakSuspected());
-        System.out.printf("确认泄漏: %d%n", stats.totalLeakConfirmed());
-        System.out.printf("泄漏率: %.1f%%%n", stats.getLeakRate() * 100);
-        System.out.printf("平均对象年龄: %.1f秒%n", stats.avgObjectAgeSeconds());
+        log.info("[{}] 对象监控统计 - 活跃: {}, 创建: {}, 回收: {} ({}%), 疑似泄漏: {}, 确认泄漏: {}, 泄漏率: {}%, 平均年龄: {}秒",
+                targetClass.getName(),
+                stats.activeCount(), stats.totalCreated(), stats.totalCollected(),
+                String.format("%.1f", stats.totalCreated() > 0 ? (double) stats.totalCollected() / stats.totalCreated() * 100 : 0),
+                stats.totalLeakSuspected(), stats.totalLeakConfirmed(),
+                String.format("%.1f", stats.getLeakRate() * 100),
+                String.format("%.1f", stats.avgObjectAgeSeconds()));
 
         if (stats.activeCount() > monitorConfig.leakSuspectThreshold) {
-            System.err.printf("⚠️ 警告: 活跃对象数量超过阈值 (%d > %d)%n", stats.activeCount(), monitorConfig.leakSuspectThreshold);
+            log.warn("[{}] 活跃对象数量超过阈值 ({} > {})",
+                    targetClass.getName(), stats.activeCount(), monitorConfig.leakSuspectThreshold);
         }
-        if (listener != null) {
+
+        MonitorListener<T> currentListener;
+        synchronized (this) {
+            currentListener = listener;
+        }
+        if (currentListener != null) {
             try {
-                listener.onStatsUpdated(stats);
+                currentListener.onStatsUpdated(stats);
             } catch (Exception e) {
                 // 忽略监听器异常
             }

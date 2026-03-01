@@ -1,5 +1,6 @@
 package zxf.monitor;
 
+import lombok.extern.slf4j.Slf4j;
 import zxf.util.JCmdInvoker;
 
 import java.time.Duration;
@@ -12,6 +13,7 @@ import java.util.regex.Pattern;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
+@Slf4j
 public class ClassMonitor {
     private static final Pattern pattern = Pattern.compile("^\\s*\\d+:\\s+(\\d+)\\s+(\\d+)\\s+([^\\s]+)");
     private final Duration checkInterval;
@@ -39,7 +41,7 @@ public class ClassMonitor {
     }
 
     private void checkClasses() {
-        System.out.println("checkClasses");
+        log.debug("checkClasses");
         try {
             System.gc();
             try {
@@ -63,12 +65,12 @@ public class ClassMonitor {
 
                 for (String searchKey : searchKeys) {
                     if (className.contains(searchKey)) {
-                        System.out.println("⚠️ 类泄漏: " + className + " - " + instanceCount + " instances" + " - " + bytes + " bytes");
+                        log.warn("类泄漏: {} - {} instances - {} bytes", className, instanceCount, bytes);
                     }
                 }
             }
         } catch (Exception ex) {
-            System.out.println("Error in checkClasses");
+            log.error("Error in checkClasses", ex);
         }
     }
 }

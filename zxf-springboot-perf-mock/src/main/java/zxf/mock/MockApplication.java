@@ -1,5 +1,6 @@
 package zxf.mock;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.io.ClassPathResource;
@@ -7,8 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-
+@Slf4j
 @RestController
 @SpringBootApplication
 public class MockApplication {
@@ -28,7 +28,7 @@ public class MockApplication {
             Thread.sleep(delay * 1000L);
         }
 
-        System.out.println(LocalDateTime.now() + " - text");
+        log.info("text");
         return new ClassPathResource("163.txt");
     }
 
@@ -42,7 +42,7 @@ public class MockApplication {
             Thread.sleep(delay * 1000L);
         }
 
-        System.out.println(LocalDateTime.now() + " - binary");
+        log.info("binary");
         return new ClassPathResource("163.dat");
     }
 }

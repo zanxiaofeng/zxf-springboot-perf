@@ -21,6 +21,9 @@ public class TestController {
 
     private static final int MAX_DELAY_SECONDS = 30;
 
+    // NOTE: RestTemplate/HttpClient are intentionally created per request and never closed,
+    // to demonstrate and observe resource leak behavior under load testing.
+
     @GetMapping("/template/new/default")
     public ResponseEntity<String> newRestTemplateDefault(@RequestParam(required = false) Integer delay) throws Exception {
         if (delay != null) {

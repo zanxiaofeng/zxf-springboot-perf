@@ -13,7 +13,7 @@ import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -23,14 +23,14 @@ public class HttpClientMonitor {
     private final ThreadMonitor threadMonitor;
     private final ClassMonitor classMonitor;
     private final DescriptorMonitor descriptorMonitor;
-    private final Map<Class, Boolean> closableClasses = new ConcurrentHashMap<>();
+    private final Set<Class<?>> closableClasses = ConcurrentHashMap.newKeySet();
 
     public HttpClientMonitor() {
         closeableMonitor = new ObjectMonitor<>(Closeable.class);
 
         closeableMonitor.startup(config -> {
             config.setCheckInterval(Duration.ofSeconds(30));
-            config.setTatsInterval(Duration.ofSeconds(60));
+            config.setStatsInterval(Duration.ofSeconds(60));
             config.setAutoGcBeforeCheck(true);
             config.setLeakSuspectThreshold(5000);
             config.setMaxObjectAge(Duration.ofMinutes(10));
@@ -47,12 +47,12 @@ public class HttpClientMonitor {
 
             @Override
             public void onLeakSuspected(TReference<Closeable> ref, String reason) {
-                System.err.println("⚠️ 连接泄漏嫌疑: " + ref.getSummary() + ", 原因: " + reason);
+                log.warn("连接泄漏嫌疑: {}, 原因: {}", ref.getSummary(), reason);
             }
 
             @Override
             public void onLeakConfirmed(TReference<Closeable> ref, String reason) {
-                System.err.println("❌ 确认连接泄漏: " + ref.getSummary() + ", 原因: " + reason);
+                log.error("确认连接泄漏: {}, 原因: {}", ref.getSummary(), reason);
             }
 
             @Override
@@ -96,8 +96,7 @@ public class HttpClientMonitor {
             @SuppressWarnings("unchecked")
             List<Closeable> closeables = (List<Closeable>) value;
             for (Closeable closeable : closeables) {
-                if (!closableClasses.containsKey(closeable.getClass())) {
-                    closableClasses.putIfAbsent(closeable.getClass(), true);
+                if (closableClasses.add(closeable.getClass())) {
                     log.info("closable class: {}", closeable.getClass());
                 }
                 closeableMonitor.register(closeable, null);

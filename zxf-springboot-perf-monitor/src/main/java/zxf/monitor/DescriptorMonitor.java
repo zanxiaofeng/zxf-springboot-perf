@@ -1,6 +1,7 @@
 package zxf.monitor;
 
 import com.sun.management.UnixOperatingSystemMXBean;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
@@ -21,6 +22,7 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
  *
  * @author davis
  */
+@Slf4j
 public class DescriptorMonitor {
     private final Duration checkInterval;
     private final int openLimit;
@@ -57,14 +59,14 @@ public class DescriptorMonitor {
     }
 
     private void checkDescriptors() {
-        System.out.println("checkDescriptors");
+        log.debug("checkDescriptors");
 
         // 1. 保留原有的 MXBean count check
         OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
         if (os instanceof UnixOperatingSystemMXBean unix) {
             long count = unix.getOpenFileDescriptorCount();
             if (count > openLimit) {
-                System.err.println("⚠️ 文件描述符泄漏: " + count + " / " + openLimit);
+                log.warn("文件描述符泄漏: {} / {}", count, openLimit);
             }
 
             // 2. 详细模式：额外输出 /proc/self/fd 信息
@@ -77,21 +79,21 @@ public class DescriptorMonitor {
     private void printDetailedInfo(long mxbeanCount) {
         List<FileDescriptorInfo> descriptors = listOpenFileDescriptors();
 
-        System.out.println("=== 打开的文件描述符 [MXBean:" + mxbeanCount + ", Actual:" + descriptors.size() + "] ===");
+        log.info("=== 打开的文件描述符 [MXBean:{}, Actual:{}] ===", mxbeanCount, descriptors.size());
 
         if (descriptors.size() > openLimit) {
-            System.err.println("⚠️ 文件描述符数量超过阈值: " + descriptors.size() + " > " + openLimit);
+            log.warn("文件描述符数量超过阈值: {} > {}", descriptors.size(), openLimit);
         }
 
         // 按类型分组统计
         Map<FdType, Long> typeStats = descriptors.stream()
                 .collect(Collectors.groupingBy(FileDescriptorInfo::type, Collectors.counting()));
-        System.out.println("类型统计: " + typeStats);
+        log.info("类型统计: {}", typeStats);
 
         // 显示非标准文件描述符
         descriptors.stream()
                 .filter(fd -> fd.type() != FdType.ANON_INODE && fd.type() != FdType.PIPE && fd.type() != FdType.SOCKET)
-                .forEach(fd -> System.out.println("  " + fd));
+                .forEach(fd -> log.info("  {}", fd));
 
         // 检查是否有匹配过滤器的文件
         if (!filters.isEmpty()) {
@@ -99,8 +101,8 @@ public class DescriptorMonitor {
                     .filter(fd -> filters.stream().anyMatch(filter -> fd.target().contains(filter)))
                     .toList();
             if (!matched.isEmpty()) {
-                System.out.println("匹配过滤器的文件:");
-                matched.forEach(fd -> System.out.println("  " + fd.target()));
+                log.info("匹配过滤器的文件:");
+                matched.forEach(fd -> log.info("  {}", fd.target()));
             }
         }
     }
@@ -142,9 +144,7 @@ public class DescriptorMonitor {
          * 获取文件描述符类型
          */
         public FdType type() {
-            if (target.startsWith("/")) {
-                return FdType.FILE;
-            } else if (target.startsWith("socket:")) {
+            if (target.startsWith("socket:")) {
                 return FdType.SOCKET;
             } else if (target.startsWith("pipe:")) {
                 return FdType.PIPE;
@@ -152,6 +152,8 @@ public class DescriptorMonitor {
                 return FdType.ANON_INODE;
             } else if (target.startsWith("/dev/")) {
                 return FdType.DEVICE;
+            } else if (target.startsWith("/")) {
+                return FdType.FILE;
             } else {
                 return FdType.OTHER;
             }

@@ -1,5 +1,7 @@
 package zxf.monitor;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
@@ -12,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.Executors.*;
 
+@Slf4j
 public class ThreadMonitor {
     private final Duration checkInterval;
     private final String[] searchKeys;
@@ -38,7 +41,7 @@ public class ThreadMonitor {
     }
 
     private void checkThreads() {
-        System.out.println("checkThreads");
+        log.debug("checkThreads");
         ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
         ThreadInfo[] threads = threadBean.dumpAllThreads(false, false);
 
@@ -55,9 +58,9 @@ public class ThreadMonitor {
             }
         }
         if (foundThreads.size() > foundLimit) {
-            System.out.println("⚠️ 线程泄漏: " + foundThreads.size() + " / " + totalCount);
+            log.warn("线程泄漏: {} / {}", foundThreads.size(), totalCount);
             for (ThreadInfo thread : foundThreads) {
-                System.out.println("⚠️ 线程泄漏: " + thread + Arrays.asList(thread.getStackTrace()));
+                log.warn("线程泄漏: {}{}", thread, Arrays.asList(thread.getStackTrace()));
             }
         }
     }

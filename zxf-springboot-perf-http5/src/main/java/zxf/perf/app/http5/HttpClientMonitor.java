@@ -12,8 +12,8 @@ import zxf.monitor.object.TReference;
 import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -23,36 +23,36 @@ public class HttpClientMonitor {
     private final ThreadMonitor threadMonitor;
     private final ClassMonitor classMonitor;
     private final DescriptorMonitor descriptorMonitor;
-    private final Map<Class, Boolean> closableClasses = new ConcurrentHashMap<>();
+    private final Set<Class<?>> closableClasses = ConcurrentHashMap.newKeySet();
 
     public HttpClientMonitor() {
         closeableMonitor = new ObjectMonitor<>(Closeable.class);
 
         closeableMonitor.startup(config -> {
             config.setCheckInterval(Duration.ofSeconds(30));
-            config.setTatsInterval(Duration.ofSeconds(60));
+            config.setStatsInterval(Duration.ofSeconds(60));
             config.setAutoGcBeforeCheck(true);
             config.setLeakSuspectThreshold(5000);
             config.setMaxObjectAge(Duration.ofMinutes(10));
         }, new MonitorListener<Closeable>() {
             @Override
             public void onObjectRegistered(TReference<Closeable> ref) {
-                System.out.println("注册连接: " + ref.getSummary());
+                log.debug("注册连接: {}", ref.getSummary());
             }
 
             @Override
             public void onObjectCollected(TReference<Closeable> ref) {
-                System.out.println("收集连接: " + ref.getSummary());
+                log.debug("收集连接: {}", ref.getSummary());
             }
 
             @Override
             public void onLeakSuspected(TReference<Closeable> ref, String reason) {
-                System.err.println("⚠️ 连接泄漏嫌疑: " + ref.getSummary() + ", 原因: " + reason);
+                log.warn("连接泄漏嫌疑: {}, 原因: {}", ref.getSummary(), reason);
             }
 
             @Override
             public void onLeakConfirmed(TReference<Closeable> ref, String reason) {
-                System.err.println("❌ 确认连接泄漏: " + ref.getSummary() + ", 原因: " + reason);
+                log.error("确认连接泄漏: {}, 原因: {}", ref.getSummary(), reason);
             }
 
             @Override
@@ -83,8 +83,7 @@ public class HttpClientMonitor {
             @SuppressWarnings("unchecked")
             Queue<Closeable> closeables = (Queue<Closeable>) value;
             for (Closeable closeable : closeables) {
-                if (!closableClasses.containsKey(closeable.getClass())) {
-                    closableClasses.putIfAbsent(closeable.getClass(), true);
+                if (closableClasses.add(closeable.getClass())) {
                     log.info("closable class: {}", closeable.getClass());
                 }
                 closeableMonitor.register(closeable, null);
