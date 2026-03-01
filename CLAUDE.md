@@ -32,7 +32,7 @@ ab -c 10 -n 1000000 http://localhost:8080/httpclient/new/default?close=false
 ```
 zxf-springboot-perf-monitor    # 资源泄漏监控核心库（无Spring依赖，纯Java）
 zxf-springboot-perf-http4      # HttpClient 4.5.14 + Spring Boot 2.7.18
-zxf-springboot-perf-http5      # HttpClient 5.5.1 + Spring Boot 3.5.8
+zxf-springboot-perf-http5      # HttpClient 5.5.1 + Spring Boot 3.5.11
 zxf-springboot-perf-mock       # 模拟后端服务（支持 ?delay=N 延迟）
 ```
 
@@ -78,7 +78,7 @@ field.setAccessible(true);
 
 | 方面 | HTTP4 | HTTP5 |
 |------|-------|-------|
-| Spring Boot | 2.7.18 | 3.5.8 |
+| Spring Boot | 2.7.18 | 3.5.11 |
 | HttpClient 包名 | `org.apache.http` | `org.apache.hc.client5` |
 | Closeables 容器 | `List<Closeable>`（遍历关闭） | `ConcurrentLinkedQueue<Closeable>`（poll关闭） |
 | 空闲连接驱逐线程名 | `Connection evictor` | `idle-connection-evictor` |
