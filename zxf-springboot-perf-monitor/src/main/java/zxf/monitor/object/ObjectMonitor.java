@@ -75,8 +75,8 @@ public class ObjectMonitor<T> {
         cleanupExecutor.scheduleAtFixedRate(this::cleanupCollectedReferences, 100, 100, TimeUnit.MILLISECONDS);
 
         // 定期检查泄漏（较慢，每30秒）
-        leakDetectionExecutor.scheduleAtFixedRate(this::performLeakDetection, monitorConfig.checkInterval.getSeconds(),
-                monitorConfig.checkInterval.getSeconds(), TimeUnit.SECONDS);
+        leakDetectionExecutor.scheduleAtFixedRate(this::performLeakDetection, monitorConfig.getCheckInterval().getSeconds(),
+                monitorConfig.getCheckInterval().getSeconds(), TimeUnit.SECONDS);
 
         // 定期更新统计数据（每5秒）
         statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getStatsInterval().getSeconds(),
@@ -236,7 +236,7 @@ public class ObjectMonitor<T> {
      * 执行泄漏检测
      */
     private void performLeakDetection() {
-        if (monitorConfig.autoGcBeforeCheck) {
+        if (monitorConfig.isAutoGcBeforeCheck()) {
             System.gc();
             try {
                 Thread.sleep(100);
@@ -254,8 +254,8 @@ public class ObjectMonitor<T> {
         synchronized (this) {
             currentListener = listener;
             for (TReference<T> ref : activeReferences.values()) {
-                if (ref.isActive() && ref.getAge().compareTo(monitorConfig.maxObjectAge) > 0) {
-                    String reason = "对象存活时间超过 " + monitorConfig.maxObjectAge;
+                if (ref.isActive() && ref.getAge().compareTo(monitorConfig.getMaxObjectAge()) > 0) {
+                    String reason = "对象存活时间超过 " + monitorConfig.getMaxObjectAge();
                     ref.markAsLeakSuspected(reason);
                     totalLeakSuspected.incrementAndGet();
                     leakEvents.add(new LeakEvent(ref, reason));
@@ -263,7 +263,7 @@ public class ObjectMonitor<T> {
             }
 
             MonitorStats currentStats = computeStats();
-            if (currentStats.totalLeakSuspected() > monitorConfig.leakSuspectThreshold) {
+            if (currentStats.totalLeakSuspected() > monitorConfig.getLeakSuspectThreshold()) {
                 for (TReference<T> ref : activeReferences.values()) {
                     if (ref.isActive()) {
                         String reason = "Active count exceeds confirmation threshold";
@@ -324,9 +324,9 @@ public class ObjectMonitor<T> {
                 String.format("%.1f", stats.getLeakRate() * 100),
                 String.format("%.1f", stats.avgObjectAgeSeconds()));
 
-        if (stats.activeCount() > monitorConfig.leakSuspectThreshold) {
+        if (stats.activeCount() > monitorConfig.getLeakSuspectThreshold()) {
             log.warn("[{}] 活跃对象数量超过阈值 ({} > {})",
-                    targetClass.getName(), stats.activeCount(), monitorConfig.leakSuspectThreshold);
+                    targetClass.getName(), stats.activeCount(), monitorConfig.getLeakSuspectThreshold());
         }
 
         MonitorListener<T> currentListener;

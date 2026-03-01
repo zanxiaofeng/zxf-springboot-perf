@@ -11,9 +11,9 @@ import java.time.Duration;
  */
 @Data
 public class MonitorConfig {
-    Duration checkInterval = Duration.ofSeconds(30);
-    Duration statsInterval = Duration.ofSeconds(120);
-    boolean autoGcBeforeCheck = false;
-    Duration maxObjectAge = Duration.ofHours(1);
-    int leakSuspectThreshold = 1000;
+    private Duration checkInterval = Duration.ofSeconds(30);
+    private Duration statsInterval = Duration.ofSeconds(60);
+    private boolean autoGcBeforeCheck = false;
+    private Duration maxObjectAge = Duration.ofHours(1);
+    private int leakSuspectThreshold = 1000;
 }

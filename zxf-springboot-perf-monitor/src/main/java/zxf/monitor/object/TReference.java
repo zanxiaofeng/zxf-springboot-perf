@@ -119,7 +119,7 @@ public class TReference<T> extends WeakReference<T> {
      *
      * @return true 是，false 否
      */
-    public Boolean isActive() {
+    public boolean isActive() {
         return this.state == State.ACTIVE;
     }
 
@@ -128,7 +128,7 @@ public class TReference<T> extends WeakReference<T> {
      *
      * @return true 是，false 否
      */
-    public Boolean isLeakSuspected() {
+    public boolean isLeakSuspected() {
         return this.state == State.LEAK_SUSPECTED;
     }
 
@@ -146,7 +146,7 @@ public class TReference<T> extends WeakReference<T> {
      *
      * @return true 是，false 否
      */
-    public Boolean isLeakConfirmed() {
+    public boolean isLeakConfirmed() {
         return this.state == State.LEAK_CONFIRMED;
     }
 
@@ -165,7 +165,7 @@ public class TReference<T> extends WeakReference<T> {
      *
      * @return true 是，false 否
      */
-    public Boolean isCollected() {
+    public boolean isCollected() {
         return this.state == State.GARBAGE_COLLECTED;
     }
 
