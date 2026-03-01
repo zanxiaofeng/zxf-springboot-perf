@@ -1,5 +1,6 @@
 package zxf.perf.app.http5;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.springframework.stereotype.Component;
 import zxf.monitor.*;
@@ -12,9 +13,10 @@ import java.io.Closeable;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
+@Slf4j
 @Component
 public class HttpClientMonitor {
     private final ObjectMonitor<Closeable> closeableMonitor;
@@ -69,16 +71,27 @@ public class HttpClientMonitor {
         descriptorMonitor.start();
     }
 
-    public void monitor(HttpClient httpClient) throws Exception {
-        Field field = httpClient.getClass().getDeclaredField("closeables");
-        field.setAccessible(true);
-        ConcurrentLinkedQueue<Closeable> closeables = (ConcurrentLinkedQueue<Closeable>) field.get(httpClient);
-        for (Closeable closeable : closeables) {
-            if (!closableClasses.containsKey(closeable.getClass())) {
-                closableClasses.putIfAbsent(closeable.getClass(), true);
-                System.out.println("closable class： " + closeable.getClass());
+    public void monitor(HttpClient httpClient) {
+        try {
+            Field field = httpClient.getClass().getDeclaredField("closeables");
+            field.setAccessible(true);
+            Object value = field.get(httpClient);
+            if (!(value instanceof Queue)) {
+                log.warn("Unexpected closeables field type: {}", value.getClass());
+                return;
             }
-            closeableMonitor.register(closeable, null);
+            @SuppressWarnings("unchecked")
+            Queue<Closeable> closeables = (Queue<Closeable>) value;
+            for (Closeable closeable : closeables) {
+                if (!closableClasses.containsKey(closeable.getClass())) {
+                    closableClasses.putIfAbsent(closeable.getClass(), true);
+                    log.info("closable class: {}", closeable.getClass());
+                }
+                closeableMonitor.register(closeable, null);
+            }
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            log.warn("Cannot access HttpClient internals for monitoring. "
+                    + "HttpClient implementation may have changed.", e);
         }
     }
 }

@@ -19,14 +19,14 @@ public class WebClientFactory {
     @Autowired
     private HttpClientMonitor monitor;
 
-    public RestTemplate newRestTemplateWithDefaultHttpClient() throws Exception {
+    public RestTemplate newRestTemplateWithDefaultHttpClient() {
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
         RestTemplate restTemplate = new RestTemplate(requestFactory);
         monitor.monitor(requestFactory.getHttpClient());
         return restTemplate;
     }
 
-    public RestTemplate newRestTemplateWithCustomHttpClientWithPool() throws Exception {
+    public RestTemplate newRestTemplateWithCustomHttpClientWithPool() {
         HttpClient httpClient = HttpClients.custom()
                 .setConnectionManager(new PoolingHttpClientConnectionManager())
                 .setConnectionTimeToLive(30, TimeUnit.MINUTES)
@@ -48,7 +48,7 @@ public class WebClientFactory {
         return restTemplate;
     }
 
-    public CloseableHttpClient newHttpClient() throws Exception {
+    public CloseableHttpClient newHttpClient() {
         CloseableHttpClient httpClient = HttpClients.createDefault();
         monitor.monitor(httpClient);
         return httpClient;

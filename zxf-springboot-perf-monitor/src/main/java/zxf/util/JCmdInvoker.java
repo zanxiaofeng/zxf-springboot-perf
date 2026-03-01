@@ -1,7 +1,5 @@
 package zxf.util;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -9,9 +7,11 @@ import java.util.List;
 
 public class JCmdInvoker {
     public static List<String> getClassHistogram() throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(buildJCmdCommand(), getCurrentPid(), "GC.class_histogram");
+        pb.redirectErrorStream(true);
         Process process = null;
         try {
-            process = Runtime.getRuntime().exec(buildJCmdCommand() + " " + getCurrentPid() + " GC.class_histogram");
+            process = pb.start();
             List<String> result = new ArrayList<>();
 
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {

@@ -8,6 +8,7 @@ import java.lang.ref.WeakReference;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 追踪引用 - 包含对象的额外元数据
@@ -38,7 +39,7 @@ public class TReference<T> extends WeakReference<T> {
         this.state = State.ACTIVE;
         this.lastAccessTime = Instant.now();
         this.lifecyclePhase = "created";
-        this.metadata = new HashMap<>();
+        this.metadata = new ConcurrentHashMap<>();
         this.metadata.put("hashCode", System.identityHashCode(referent));
         this.metadata.put("threadName", Thread.currentThread().getName());
         this.metadata.put("stackTrace", List.of(Thread.currentThread().getStackTrace()));

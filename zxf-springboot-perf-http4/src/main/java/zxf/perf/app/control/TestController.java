@@ -19,10 +19,15 @@ public class TestController {
     @Autowired
     private WebClientFactory webClientFactory;
 
+    private static final int MAX_DELAY_SECONDS = 30;
+
     @GetMapping("/template/new/default")
     public ResponseEntity<String> newRestTemplateDefault(@RequestParam(required = false) Integer delay) throws Exception {
         if (delay != null) {
-            Thread.sleep(delay * 1000);
+            if (delay < 0 || delay > MAX_DELAY_SECONDS) {
+                return ResponseEntity.badRequest().body("delay must be between 0 and " + MAX_DELAY_SECONDS);
+            }
+            Thread.sleep(delay * 1000L);
         }
         return ResponseEntity.ok(testRestTemplate(webClientFactory.newRestTemplateWithDefaultHttpClient(), delay));
     }
@@ -30,7 +35,10 @@ public class TestController {
     @GetMapping("/template/new/custom/pool")
     public ResponseEntity<String> newRestTemplateCustomPool(@RequestParam(required = false) Integer delay) throws Exception {
         if (delay != null) {
-            Thread.sleep(delay * 1000);
+            if (delay < 0 || delay > MAX_DELAY_SECONDS) {
+                return ResponseEntity.badRequest().body("delay must be between 0 and " + MAX_DELAY_SECONDS);
+            }
+            Thread.sleep(delay * 1000L);
         }
         return ResponseEntity.ok(testRestTemplate(webClientFactory.newRestTemplateWithCustomHttpClientWithPool(), delay));
     }
@@ -38,7 +46,10 @@ public class TestController {
     @GetMapping("/httpclient/new/default")
     public ResponseEntity<String> newHttpClientDefault(@RequestParam(required = false) Integer delay, @RequestParam(defaultValue = "true") Boolean close) throws Exception {
         if (delay != null) {
-            Thread.sleep(delay * 1000);
+            if (delay < 0 || delay > MAX_DELAY_SECONDS) {
+                return ResponseEntity.badRequest().body("delay must be between 0 and " + MAX_DELAY_SECONDS);
+            }
+            Thread.sleep(delay * 1000L);
         }
         return ResponseEntity.ok(testHttpClient(webClientFactory.newHttpClient(), delay, close));
     }
