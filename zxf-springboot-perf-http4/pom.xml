@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>4.1.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -22,9 +22,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- Spring Boot 4.x 的 BOM 不再管理 HttpClient 4.x（Spring Framework 6+ 的
+             HttpComponentsClientHttpRequestFactory 仅支持 HttpClient 5）。本模块仍需
+             HttpClient 4.5.14 作为资源泄漏对比的被测对象，故显式锁定版本。 -->
         <dependency>
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
+            <version>4.5.14</version>
         </dependency>
         <dependency>
             <groupId>org.apache.commons</groupId>
