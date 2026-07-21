@@ -64,7 +64,7 @@ public class HttpClientMonitor {
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(90), new String[]{"org.apache.hc.client5", "idle-connection-evictor"}, 1000);
         threadMonitor.start();
 
-        classMonitor = new ClassMonitor(Duration.ofSeconds(5), new String[]{"org.apache.hc.client5","java.net.Socket", "javax.net", "sun.net", "sun.nio.ch.NioSocketImpl", "java.lang.Thread"}, 0);
+        classMonitor = new ClassMonitor(Duration.ofSeconds(90), new String[]{"org.apache.hc.client5","java.net.Socket", "javax.net", "sun.net", "sun.nio.ch.NioSocketImpl", "java.lang.Thread"}, 100);
         classMonitor.start();
 
         descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(90), 5000);
@@ -76,6 +76,10 @@ public class HttpClientMonitor {
             Field field = httpClient.getClass().getDeclaredField("closeables");
             field.setAccessible(true);
             Object value = field.get(httpClient);
+            if (value == null) {
+                log.warn("HttpClient closeables field is null, skipping monitoring");
+                return;
+            }
             if (!(value instanceof Queue)) {
                 log.warn("Unexpected closeables field type: {}", value.getClass());
                 return;

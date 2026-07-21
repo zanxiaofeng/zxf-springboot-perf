@@ -77,7 +77,7 @@ public class HttpClientMonitor {
                         "sun.net.www",               // HTTP 协议处理器
                         "sun.nio.ch",                // NIO 通道
                         "java.lang.Thread"           // 线程
-                }, 0);
+                }, 100);
         classMonitor.start();
 
         descriptorMonitor = new DescriptorMonitor(Duration.ofSeconds(90), 5000, true);
@@ -89,6 +89,10 @@ public class HttpClientMonitor {
             Field field = httpClient.getClass().getDeclaredField("closeables");
             field.setAccessible(true);
             Object value = field.get(httpClient);
+            if (value == null) {
+                log.warn("HttpClient closeables field is null, skipping monitoring");
+                return;
+            }
             if (!(value instanceof List)) {
                 log.warn("Unexpected closeables field type: {}", value.getClass());
                 return;

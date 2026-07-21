@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class JCmdInvoker {
     public static List<String> getClassHistogram() throws Exception {
@@ -21,11 +22,18 @@ public class JCmdInvoker {
                 }
             }
 
-            int exitCode = process.waitFor();
+            if (!process.waitFor(30, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                throw new RuntimeException("jcmd command timed out after 30 seconds");
+            }
+            int exitCode = process.exitValue();
             if (exitCode != 0) {
                 throw new RuntimeException("jcmd command failed with exit code: " + exitCode);
             }
             return result;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for jcmd", e);
         } finally {
             if (process != null) {
                 process.destroy();
@@ -34,8 +42,7 @@ public class JCmdInvoker {
     }
 
     private static String getCurrentPid() {
-        return java.lang.management.ManagementFactory
-                .getRuntimeMXBean().getName().split("@")[0];
+        return String.valueOf(ProcessHandle.current().pid());
     }
 
     private static String buildJCmdCommand() {

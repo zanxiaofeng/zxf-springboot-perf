@@ -262,15 +262,17 @@ public class ObjectMonitor<T> {
                 }
             }
 
-            MonitorStats currentStats = computeStats();
-            if (currentStats.totalLeakSuspected() > monitorConfig.getLeakSuspectThreshold()) {
-                for (TReference<T> ref : activeReferences.values()) {
-                    if (ref.isActive()) {
-                        String reason = "Active count exceeds confirmation threshold";
-                        ref.markAsLeakConfirmed(reason);
-                        totalLeakConfirmed.incrementAndGet();
-                        confirmEvents.add(new LeakEvent(ref, reason));
-                    }
+            // 当前疑似数量（非累计值）超过阈值时，将疑似对象批量确认为泄漏
+            List<TReference<T>> suspectedRefs = activeReferences.values().stream()
+                    .filter(TReference::isLeakSuspected)
+                    .toList();
+            if (suspectedRefs.size() > monitorConfig.getLeakSuspectThreshold()) {
+                String reason = "疑似泄漏数量超过确认阈值 (" + suspectedRefs.size() + " > "
+                        + monitorConfig.getLeakSuspectThreshold() + ")";
+                for (TReference<T> ref : suspectedRefs) {
+                    ref.markAsLeakConfirmed(reason);
+                    totalLeakConfirmed.incrementAndGet();
+                    confirmEvents.add(new LeakEvent(ref, reason));
                 }
             }
         }
