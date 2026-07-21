@@ -142,7 +142,7 @@ public class TReference<T> extends WeakReference<T> {
     }
 
     /**
-     * 是否是疑似泄漏
+     * 是否是确认泄漏
      *
      * @return true 是，false 否
      */

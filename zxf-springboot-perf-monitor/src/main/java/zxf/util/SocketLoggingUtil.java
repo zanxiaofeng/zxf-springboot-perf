@@ -7,6 +7,10 @@ public class SocketLoggingUtil {
     public static void enableAllNetworkLogging() {
         Logger rootLogger = Logger.getLogger("");
         rootLogger.setLevel(Level.FINEST);
+        // handler 默认级别为 INFO，不同步下调会过滤掉 FINEST 日志
+        for (Handler handler : rootLogger.getHandlers()) {
+            handler.setLevel(Level.FINEST);
+        }
 
         Logger.getLogger("sun.net").setLevel(Level.ALL);
         Logger.getLogger("sun.nio.ch").setLevel(Level.ALL);

@@ -60,7 +60,7 @@ public class ThreadMonitor {
         if (foundThreads.size() > foundLimit) {
             log.warn("线程泄漏: {} / {}", foundThreads.size(), totalCount);
             for (ThreadInfo thread : foundThreads) {
-                log.warn("线程泄漏: {}{}", thread, Arrays.asList(thread.getStackTrace()));
+                log.warn("线程泄漏: {} - {}", thread, Arrays.toString(thread.getStackTrace()));
             }
         }
     }

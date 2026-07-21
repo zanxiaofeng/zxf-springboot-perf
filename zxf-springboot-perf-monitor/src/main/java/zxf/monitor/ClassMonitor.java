@@ -15,7 +15,7 @@ import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
 @Slf4j
 public class ClassMonitor {
-    private static final Pattern pattern = Pattern.compile("^\\s*\\d+:\\s+(\\d+)\\s+(\\d+)\\s+([^\\s]+)");
+    private static final Pattern PATTERN = Pattern.compile("^\\s*\\d+:\\s+(\\d+)\\s+(\\d+)\\s+([^\\s]+)");
     private final Duration checkInterval;
     private final String[] searchKeys;
     private final long instanceLimit;
@@ -51,7 +51,7 @@ public class ClassMonitor {
             }
             List<String> classHistogram = JCmdInvoker.getClassHistogram();
             for (String classStat : classHistogram) {
-                Matcher matcher = pattern.matcher(classStat);
+                Matcher matcher = PATTERN.matcher(classStat);
                 if (!matcher.find()) {
                     continue;
                 }

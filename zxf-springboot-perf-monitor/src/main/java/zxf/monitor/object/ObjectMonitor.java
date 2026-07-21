@@ -25,6 +25,7 @@ public class ObjectMonitor<T> {
     private final ScheduledExecutorService leakDetectionExecutor;
     private final ScheduledExecutorService statsExecutor;
     private MonitorListener<T> listener;
+    private boolean started = false;
 
     /**
      * 监控数据存储
@@ -67,18 +68,27 @@ public class ObjectMonitor<T> {
      */
     public void startup(Consumer<MonitorConfig> configurator, MonitorListener<T> listener) {
         synchronized (this) {
+            if (started) {
+                throw new IllegalStateException("ObjectMonitor already started");
+            }
             configurator.accept(monitorConfig);
+            // 调度周期以秒为单位，亚秒配置会被截断为 0 导致 scheduleAtFixedRate 抛异常，提前拦截
+            if (monitorConfig.getCheckInterval().getSeconds() < 1
+                    || monitorConfig.getStatsInterval().getSeconds() < 1) {
+                throw new IllegalArgumentException("checkInterval/statsInterval must be >= 1 second");
+            }
             this.listener = listener;
+            started = true;
         }
 
         // 定期清理已回收的引用（快速清理，每100毫秒）
         cleanupExecutor.scheduleAtFixedRate(this::cleanupCollectedReferences, 100, 100, TimeUnit.MILLISECONDS);
 
-        // 定期检查泄漏（较慢，每30秒）
+        // 定期检查泄漏（默认每30秒，由 checkInterval 配置）
         leakDetectionExecutor.scheduleAtFixedRate(this::performLeakDetection, monitorConfig.getCheckInterval().getSeconds(),
                 monitorConfig.getCheckInterval().getSeconds(), TimeUnit.SECONDS);
 
-        // 定期更新统计数据（每5秒）
+        // 定期输出统计数据（默认每60秒，由 statsInterval 配置）
         statsExecutor.scheduleAtFixedRate(this::updateStats, monitorConfig.getStatsInterval().getSeconds(),
                 monitorConfig.getStatsInterval().getSeconds(), TimeUnit.SECONDS);
     }
@@ -114,10 +124,10 @@ public class ObjectMonitor<T> {
             return null;
         }
 
-        TReference<T> ref;
+        // TReference 构造会抓取完整堆栈，属重操作，移到锁外以降低注册争用
+        TReference<T> ref = new TReference<>(object, referenceQueue, metadata);
         MonitorListener<T> currentListener;
         synchronized (this) {
-            ref = new TReference<>(object, referenceQueue, metadata);
             activeReferences.put(ref.getId(), ref);
             totalCreated.incrementAndGet();
             currentListener = listener;
@@ -318,12 +328,12 @@ public class ObjectMonitor<T> {
      */
     private void updateStats() {
         MonitorStats stats = getStats();
-        log.info("[{}] 对象监控统计 - 活跃: {}, 创建: {}, 回收: {} ({}%), 疑似泄漏: {}, 确认泄漏: {}, 泄漏率: {}%, 平均年龄: {}秒",
+        log.info("[{}] 对象监控统计 - 活跃: {}, 创建: {}, 回收: {} ({}%), 疑似泄漏: {}, 确认泄漏: {}, 未回收率: {}%, 平均年龄: {}秒",
                 targetClass.getName(),
                 stats.activeCount(), stats.totalCreated(), stats.totalCollected(),
                 String.format("%.1f", stats.totalCreated() > 0 ? (double) stats.totalCollected() / stats.totalCreated() * 100 : 0),
                 stats.totalLeakSuspected(), stats.totalLeakConfirmed(),
-                String.format("%.1f", stats.getLeakRate() * 100),
+                String.format("%.1f", stats.getUncollectedRate() * 100),
                 String.format("%.1f", stats.avgObjectAgeSeconds()));
 
         if (stats.activeCount() > monitorConfig.getLeakSuspectThreshold()) {

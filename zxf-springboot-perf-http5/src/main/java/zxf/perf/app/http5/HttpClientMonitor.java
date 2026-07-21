@@ -1,11 +1,11 @@
 package zxf.perf.app.http5;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.springframework.stereotype.Component;
 import zxf.monitor.*;
 import zxf.monitor.object.MonitorListener;
-import zxf.monitor.object.MonitorStats;
 import zxf.monitor.object.ObjectMonitor;
 import zxf.monitor.object.TReference;
 
@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Slf4j
 @Component
@@ -24,6 +25,7 @@ public class HttpClientMonitor {
     private final ClassMonitor classMonitor;
     private final DescriptorMonitor descriptorMonitor;
     private final Set<Class<?>> closableClasses = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentMap<Class<?>, Field> CLOSEABLES_FIELD_CACHE = new ConcurrentHashMap<>();
 
     public HttpClientMonitor() {
         closeableMonitor = new ObjectMonitor<>(Closeable.class);
@@ -54,11 +56,6 @@ public class HttpClientMonitor {
             public void onLeakConfirmed(TReference<Closeable> ref, String reason) {
                 log.error("确认连接泄漏: {}, 原因: {}", ref.getSummary(), reason);
             }
-
-            @Override
-            public void onStatsUpdated(MonitorStats stats) {
-                // 可以记录统计信息到日志
-            }
         });
 
         threadMonitor = new ThreadMonitor(Duration.ofSeconds(90), new String[]{"org.apache.hc.client5", "idle-connection-evictor"}, 1000);
@@ -72,9 +69,14 @@ public class HttpClientMonitor {
     }
 
     public void monitor(HttpClient httpClient) {
+        // 反射查找按类缓存，避免压测热路径上重复 getDeclaredField
+        Field field = CLOSEABLES_FIELD_CACHE.computeIfAbsent(httpClient.getClass(), HttpClientMonitor::lookupCloseablesField);
+        if (field == null) {
+            log.warn("Cannot access closeables field on {}. HttpClient implementation may have changed.",
+                    httpClient.getClass().getName());
+            return;
+        }
         try {
-            Field field = httpClient.getClass().getDeclaredField("closeables");
-            field.setAccessible(true);
             Object value = field.get(httpClient);
             if (value == null) {
                 log.warn("HttpClient closeables field is null, skipping monitoring");
@@ -92,9 +94,26 @@ public class HttpClientMonitor {
                 }
                 closeableMonitor.register(closeable, null);
             }
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            log.warn("Cannot access HttpClient internals for monitoring. "
-                    + "HttpClient implementation may have changed.", e);
+        } catch (IllegalAccessException e) {
+            log.warn("Cannot access HttpClient internals for monitoring.", e);
         }
+    }
+
+    private static Field lookupCloseablesField(Class<?> clientClass) {
+        try {
+            Field field = clientClass.getDeclaredField("closeables");
+            field.setAccessible(true);
+            return field;
+        } catch (NoSuchFieldException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        closeableMonitor.shutdown();
+        threadMonitor.stop();
+        classMonitor.stop();
+        descriptorMonitor.stop();
     }
 }

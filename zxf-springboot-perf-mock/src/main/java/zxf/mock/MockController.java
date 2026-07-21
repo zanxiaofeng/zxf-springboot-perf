@@ -22,7 +22,7 @@ public class MockController {
             Thread.sleep(delay * 1000L);
         }
 
-        log.info("text");
+        log.debug("text");
         return new ClassPathResource("163.txt");
     }
 
@@ -36,7 +36,7 @@ public class MockController {
             Thread.sleep(delay * 1000L);
         }
 
-        log.info("binary");
+        log.debug("binary");
         return new ClassPathResource("163.dat");
     }
 }

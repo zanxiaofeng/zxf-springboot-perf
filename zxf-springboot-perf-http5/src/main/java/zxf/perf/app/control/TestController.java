@@ -69,11 +69,12 @@ public class TestController {
         try {
             String requestUrl = delay != null ? "http://localhost:8089/binary?delay=" + delay : "http://localhost:8089/binary";
             CloseableHttpResponse response = httpClient.execute(new HttpGet(requestUrl));
+            int statusCode = response.getCode();
             if (close) {
                 EntityUtils.consume(response.getEntity());
                 response.close();
             }
-            return String.valueOf(response.getCode());
+            return String.valueOf(statusCode);
         } finally {
             if (close) {
                 httpClient.close();
